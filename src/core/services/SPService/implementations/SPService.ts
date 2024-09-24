@@ -17,6 +17,64 @@ export default class SPService implements ISPService {
         this.sp = spfi().using(SPFx(context));
     }
 
+    public async getPlayerEloHistory(playerId: number): Promise<{ matchNumber: number; elo: number }[]> {
+        const matches = await this.getAllMatches();
+
+        // Initialisiere die ELO-Werte aller Spieler
+        const players = await this.getAllPlayers();
+        const playerEloMap = new Map<number, number>();
+        players.forEach(player => {
+            playerEloMap.set(player.id, this.startingRanking);
+        });
+
+        // Sortiere die Matches nach Datum
+        matches.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+        let eloHistory: { matchNumber: number; elo: number }[] = [];
+        let matchCounter = 0;
+
+        const initialElo = this.startingRanking;
+        eloHistory.push({ matchNumber: 0, elo: initialElo });
+
+        for (let match of matches) {
+            const player1Id = match.player1Id;
+            const player2Id = match.player2Id;
+
+            const player1Elo = playerEloMap.get(player1Id) || this.startingRanking;
+            const player2Elo = playerEloMap.get(player2Id) || this.startingRanking;
+
+            const player1Score = match.score1;
+            const player2Score = match.score2;
+
+            // Erstellen von temporären Spielerobjekten
+            const player1 = { id: player1Id, rankingPoints: player1Elo } as IPlayer;
+            const player2 = { id: player2Id, rankingPoints: player2Elo } as IPlayer;
+
+            // Berechnen der neuen ELO-Werte
+            const { newRating1, newRating2 } = this.calculateNewRatings(
+                player1,
+                player2,
+                player1Score,
+                player2Score
+            );
+
+            // Aktualisieren der ELO-Werte
+            playerEloMap.set(player1Id, newRating1);
+            playerEloMap.set(player2Id, newRating2);
+
+            // Wenn das Match den interessierten Spieler betrifft, ELO-Wert speichern
+            if (player1Id === playerId || player2Id === playerId) {
+                matchCounter++;
+                const currentElo = playerEloMap.get(playerId) || this.startingRanking;
+                eloHistory.push({ matchNumber: matchCounter, elo: currentElo });
+            }
+        }
+
+        return eloHistory;
+    }
+
+
+
     public async getMatches(): Promise<IMatch[]> {
         try {
             const items = await this.sp.web.lists.getByTitle("Matches").items.select("Id", "Title", "Player1Id", "Player2Id", "Score1", "Score2", "WinnerId", "Datum").top(10000)();
@@ -157,7 +215,24 @@ export default class SPService implements ISPService {
 
     public async getAllMatches(): Promise<IMatch[]> {
         try {
-            const items = await this.sp.web.lists.getByTitle("Matches").items.select("Id", "Player1Id", "Player2Id", "Score1", "Score2", "WinnerId", "Datum").top(10000)();
+            const currentDate = new Date();
+            const currentYear = currentDate.getFullYear();
+            const currentMonth = currentDate.getMonth(); // 0-basiert (Januar = 0)
+
+            // Startdatum: Erster Tag des aktuellen Monats
+            const startDate = new Date(Date.UTC(currentYear, currentMonth, 1));
+            // Enddatum: Erster Tag des nächsten Monats
+            const endDate = new Date(Date.UTC(currentYear, currentMonth + 1, 1));
+
+            // Konvertiere die Daten in ISO-Strings ohne Millisekunden
+            const startDateString = startDate.toISOString().split('.')[0] + 'Z';
+            const endDateString = endDate.toISOString().split('.')[0] + 'Z';
+
+            const items = await this.sp.web.lists.getByTitle("Matches").items
+                .select("Id", "Player1Id", "Player2Id", "Score1", "Score2", "WinnerId", "Datum")
+                .filter(`Datum ge datetime'${startDateString}' and Datum lt datetime'${endDateString}'`)
+                .top(10000)();
+
             return items.map((item: any) => ({
                 id: item.Id,
                 player1Id: item.Player1Id,
@@ -172,8 +247,6 @@ export default class SPService implements ISPService {
             return [];
         }
     }
-
-
 
     public async recalculateRankings(): Promise<void> {
         const players = await this.getAllPlayers();

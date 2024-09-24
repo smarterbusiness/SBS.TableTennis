@@ -7,11 +7,15 @@ import styles from './SbsTableTennis.module.scss';
 import { ISbsTableTennisProps } from './ISbsTableTennisProps';
 import AddMatchDialog from './AddMatchDialog';
 import { recalculateRankings } from '../../../core/state/matchSlice';
+import { Link } from '@fluentui/react/lib/Link';
+import { IPlayer } from '../../../core/entities/Player';
+import PlayerStatsDialog from './costumComponents/PlayerStatsDialog';
 
 const SbsTableTennis = (props: ISbsTableTennisProps) => {
   const dispatch = useAppDispatch();
-  const players = useAppSelector((state: { player: { players: any; }; }) => state.player.players);
+  const players = useAppSelector((state) => state.player.players);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
+  const [selectedPlayer, setSelectedPlayer] = React.useState<IPlayer | null>(null);
 
   const sortedPlayers = [...players].sort((a, b) => b.rankingPoints - a.rankingPoints);
 
@@ -19,8 +23,26 @@ const SbsTableTennis = (props: ISbsTableTennisProps) => {
     dispatch(fetchPlayers());
   }, [dispatch]);
 
+  const handlePlayerClick = (player: IPlayer) => {
+    setSelectedPlayer(player);
+  };
+
+  const closePlayerDialog = () => {
+    setSelectedPlayer(null);
+  };
+
   const columns: IColumn[] = [
-    { key: 'column1', name: 'Name', fieldName: 'name', minWidth: 150, maxWidth: 200, isResizable: true },
+    {
+      key: 'column1',
+      name: 'Name',
+      fieldName: 'name',
+      minWidth: 150,
+      maxWidth: 200,
+      isResizable: true,
+      onRender: (item: IPlayer) => (
+        <Link onClick={() => handlePlayerClick(item)}>{item.name}</Link>
+      ),
+    },
     { key: 'column2', name: 'Rangpunkte', fieldName: 'rankingPoints', minWidth: 50, maxWidth: 100, isResizable: true, data: 'number', isMultiline: true },
     { key: 'column3', name: 'Gesamt', fieldName: 'gesamt', minWidth: 50, maxWidth: 100, isResizable: true, data: 'number' },
     { key: 'column4', name: 'Siege', fieldName: 'wins', minWidth: 50, maxWidth: 100, isResizable: true, data: 'number' },
@@ -49,6 +71,9 @@ const SbsTableTennis = (props: ISbsTableTennisProps) => {
       <PrimaryButton className={styles.button} text="Add Match" onClick={() => setIsDialogOpen(true)} />
       <PrimaryButton className={styles.button} text="Recalculate Rankings" onClick={handleRecalculate} />
       <AddMatchDialog isOpen={isDialogOpen} onDismiss={async () => setIsDialogOpen(false)} />
+      {selectedPlayer && (
+        <PlayerStatsDialog player={selectedPlayer} onDismiss={closePlayerDialog} />
+      )}
     </div>
   );
 };
