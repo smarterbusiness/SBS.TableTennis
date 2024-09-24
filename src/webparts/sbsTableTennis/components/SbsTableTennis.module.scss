@@ -2,3 +2,32 @@
   margin: 10px;
   float: right;
 }
+
+.dialogContent {
+  display: flex;
+  flex-direction: column;
+}
+
+.formRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.formField {
+  flex: 1;
+  min-width: 200px;
+}
+
+.winProbabilities {
+  margin-bottom: 15px;
+}
+
+.winProbability {
+  margin: 5px 0;
+}
+
+.errorMessage {
+  margin-bottom: 15px;
+}
