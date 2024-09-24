@@ -6,6 +6,7 @@ import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { IPlayer } from "../../../entities/Player";
 import { IMatch } from "../../../entities/Match";
 import { ISPService } from "../ISPService";
+import { MLModelWeight } from "../../../entities/MLModellWeight";
 
 
 export default class SPService implements ISPService {
@@ -90,6 +91,52 @@ export default class SPService implements ISPService {
         } catch (error) {
             console.error("Error fetching matches:", error);
             return [];
+        }
+    }
+
+    public async getModelWeights(modelName: string): Promise<MLModelWeight | null> {
+        try {
+            const items: MLModelWeight[] = await this.sp.web.lists.getByTitle("AIModelWeights")
+                .items
+                .select("Id", "Title", "Bias", "WeightEloDifference", "WeightHeadToHead", "LastUpdated")
+                .filter(`Title eq '${modelName}'`)();
+
+            if (items.length > 0) {
+                return items[0];
+            } else {
+                console.warn(`Keine Modellgewichte für Modellname: ${modelName} gefunden.`);
+                return null;
+            }
+        } catch (error) {
+            console.error("Fehler beim Laden der Modellgewichte:", error);
+            return null;
+        }
+    }
+
+    public async saveModelWeights(modelName: string, weights: MLModelWeight): Promise<void> {
+        try {
+            const existingModel = await this.getModelWeights(modelName);
+
+            if (existingModel) {
+                // Update des bestehenden Eintrags
+                await this.sp.web.lists.getByTitle("AIModelWeights").items.getById(existingModel.Id!).update({
+                    Bias: weights.Bias,
+                    WeightEloDifference: weights.WeightEloDifference,
+                    WeightHeadToHead: weights.WeightHeadToHead,
+                    LastUpdated: new Date().toISOString(),
+                });
+            } else {
+                // Erstellung eines neuen Eintrags
+                await this.sp.web.lists.getByTitle("AIModelWeights").items.add({
+                    Title: modelName,
+                    Bias: weights.Bias,
+                    WeightEloDifference: weights.WeightEloDifference,
+                    WeightHeadToHead: weights.WeightHeadToHead,
+                    LastUpdated: new Date().toISOString(),
+                });
+            }
+        } catch (error) {
+            console.error("Fehler beim Speichern der Modellgewichte:", error);
         }
     }
 

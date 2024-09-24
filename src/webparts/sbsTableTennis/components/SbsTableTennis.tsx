@@ -5,11 +5,11 @@ import { DetailsList, IColumn, DetailsListLayoutMode, SelectionMode } from '@flu
 import { PrimaryButton } from '@fluentui/react/lib/Button';
 import styles from './SbsTableTennis.module.scss';
 import { ISbsTableTennisProps } from './ISbsTableTennisProps';
-import AddMatchDialog from './AddMatchDialog';
 import { recalculateRankings } from '../../../core/state/matchSlice';
 import { Link } from '@fluentui/react/lib/Link';
 import { IPlayer } from '../../../core/entities/Player';
 import PlayerStatsDialog from './costumComponents/PlayerStatsDialog';
+import AddMatchDialog from './AddMatchDialog';
 
 const SbsTableTennis = (props: ISbsTableTennisProps) => {
   const dispatch = useAppDispatch();
@@ -70,7 +70,7 @@ const SbsTableTennis = (props: ISbsTableTennisProps) => {
       />
       <PrimaryButton className={styles.button} text="Add Match" onClick={() => setIsDialogOpen(true)} />
       <PrimaryButton className={styles.button} text="Recalculate Rankings" onClick={handleRecalculate} />
-      <AddMatchDialog isOpen={isDialogOpen} onDismiss={async () => setIsDialogOpen(false)} />
+      <AddMatchDialog isOpen={isDialogOpen} onDismiss={async () => setIsDialogOpen(false)} context={props.context} />
       {selectedPlayer && (
         <PlayerStatsDialog player={selectedPlayer} onDismiss={closePlayerDialog} />
       )}

@@ -3,7 +3,7 @@ import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { ISPService } from './ISPService';
 
 class SPServiceProvider {
-    private static _serviceInstance: ISPService | null = null;
+    private static _serviceInstance: ISPService;
 
     public static initialize(context: WebPartContext): void {
         if (!this._serviceInstance) {

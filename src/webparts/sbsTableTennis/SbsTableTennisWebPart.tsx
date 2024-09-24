@@ -11,6 +11,7 @@ import * as strings from 'SbsTableTennisWebPartStrings';
 import App from './components/App';
 import { Provider } from 'react-redux';
 import { store } from '../../core/state/store';
+import SPServiceProvider from '../../core/services/SPService/SPServiceProvider';
 
 export interface ISbsTableTennisWebPartProps {
   description: string;
@@ -19,6 +20,7 @@ export interface ISbsTableTennisWebPartProps {
 export default class SbsTableTennisWebPart extends BaseClientSideWebPart<ISbsTableTennisWebPartProps> {
 
   public render(): void {
+    SPServiceProvider.initialize(this.context);
     ReactDom.render(
       <Provider store={store}>
         <App context={this.context} />

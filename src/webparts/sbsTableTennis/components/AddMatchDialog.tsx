@@ -1,6 +1,6 @@
 // src/components/AddMatchDialog/AddMatchDialog.tsx
 import * as React from 'react';
-import { useEffect } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { DefaultButton, PrimaryButton } from '@fluentui/react/lib/Button';
 import { Dialog, DialogType, DialogFooter } from '@fluentui/react/lib/Dialog';
 import { TextField } from '@fluentui/react/lib/TextField';
@@ -9,6 +9,8 @@ import { MessageBar, MessageBarType } from '@fluentui/react';
 import { useAppDispatch, useAppSelector } from '../../../core/state/hook';
 import { addMatch } from '../../../core/state/matchSlice';
 import { IMatch } from '../../../core/entities/Match';
+import { WebPartContext } from '@microsoft/sp-webpart-base';
+import SPService from '../../../core/services/SPService/implementations/SPService';
 import { MatchData, SimpleMLModel } from '../../../core/MLModell/SimpleMLModell';
 import { calculateHeadToHeadStats } from '../../../core/MLModell/headToHeadHelper';
 import styles from './SbsTableTennis.module.scss';
@@ -16,13 +18,14 @@ import styles from './SbsTableTennis.module.scss';
 export interface IAddMatchDialogProps {
     isOpen: boolean;
     onDismiss: () => void;
+    context: WebPartContext; // Stelle sicher, dass der WebPartContext übergeben wird
 }
 
 const AddMatchDialog = (props: IAddMatchDialogProps) => {
     const dispatch = useAppDispatch();
     const players = useAppSelector((state) => state.player.players);
     const allMatches = useAppSelector((state) => state.match.matches);
-    const { isOpen, onDismiss } = props;
+    const { isOpen, onDismiss, context } = props;
 
     const [player1Id, setPlayer1Id] = React.useState<number | undefined>();
     const [player2Id, setPlayer2Id] = React.useState<number | undefined>();
@@ -36,7 +39,6 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
     const [aiWinProbability2, setAiWinProbability2] = React.useState<number | null>(null);
 
     const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
-    const [mlModel, setMlModel] = React.useState<SimpleMLModel | null>(null);
     const [headToHeadMap, setHeadToHeadMap] = React.useState<Map<string, { wins1: number; wins2: number; total: number }>>(
         new Map()
     );
@@ -46,7 +48,14 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
         text: player.name,
     }));
 
-    // Berechnung der Head-to-Head-Statistiken und Modelltraining beim Öffnen des Dialogs
+    // Memoize spService und modelName, um stabile Referenzen zu gewährleisten
+    const spService = useMemo(() => new SPService(context), [context]);
+    const modelName = useMemo(() => "MatchPredictionModel", []); // konstante Zeichenkette
+
+    // Verwende useRef, um die SimpleMLModel-Instanz zu speichern
+    const mlModelRef = useRef<SimpleMLModel | null>(null);
+
+    // useEffect nur ausführen, wenn isOpen sich ändert
     useEffect(() => {
         if (isOpen) {
             // Zustandsvariablen zurücksetzen
@@ -85,12 +94,22 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
                 };
             });
 
-            // Modell initialisieren und trainieren
-            const model = new SimpleMLModel();
-            model.train(matchesData);
-            setMlModel(model);
+            // Modell initialisieren, Gewichte laden und trainieren
+            const initializeModel = async () => {
+                try {
+                    const model = new SimpleMLModel(modelName, spService);
+                    await model.loadWeights();
+                    model.train(matchesData);
+                    mlModelRef.current = model;
+                } catch (error) {
+                    console.error("Fehler beim Initialisieren des Modells:", error);
+                    setErrorMessage('Fehler beim Initialisieren des KI-Modells.');
+                }
+            };
+
+            initializeModel();
         }
-    }, [isOpen, allMatches, players]);
+    }, [isOpen, allMatches, players, spService, modelName]);
 
     // Funktion zur Berechnung der Gewinnwahrscheinlichkeiten
     const calculateWinProbabilities = (player1Id: number, player2Id: number) => {
@@ -115,7 +134,7 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
             const headToHeadWinRate1 = stats && stats.total > 0 ? stats.wins1 / stats.total : 0.5;
 
             // KI-basierte Gewinnwahrscheinlichkeit berechnen
-            if (mlModel) {
+            if (mlModelRef.current) {
                 const matchData: MatchData = {
                     player1Id,
                     player2Id,
@@ -124,7 +143,7 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
                     elo2: R_B,
                     headToHeadWinRate1,
                 };
-                const aiProbability = mlModel.predict(matchData);
+                const aiProbability = mlModelRef.current.predict(matchData);
                 setAiWinProbability1(aiProbability);
                 setAiWinProbability2(1 - aiProbability);
             }
@@ -183,31 +202,38 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
                 date: new Date(),
             };
 
-            dispatch(addMatch(match));
+            try {
+                // Speichere das Match über den Redux-Dispatcher
+                await dispatch(addMatch(match)).unwrap();
 
-            // Modell aktualisieren
-            if (mlModel) {
-                const player1 = players.find((p) => p.id === player1Id);
-                const player2 = players.find((p) => p.id === player2Id);
-                const key = `${player1Id}-${player2Id}`;
-                const reverseKey = `${player2Id}-${player1Id}`;
-                const stats = headToHeadMap.get(key) || headToHeadMap.get(reverseKey);
+                // Modell aktualisieren
+                if (mlModelRef.current) {
+                    const player1 = players.find((p) => p.id === player1Id);
+                    const player2 = players.find((p) => p.id === player2Id);
+                    const key = `${player1Id}-${player2Id}`;
+                    const reverseKey = `${player2Id}-${player1Id}`;
+                    const stats = headToHeadMap.get(key) || headToHeadMap.get(reverseKey);
 
-                const headToHeadWinRate1 = stats && stats.total > 0 ? stats.wins1 / stats.total : 0.5;
+                    const headToHeadWinRate1 = stats && stats.total > 0 ? stats.wins1 / stats.total : 0.5;
 
-                const matchData: MatchData = {
-                    player1Id,
-                    player2Id,
-                    winnerId,
-                    elo1: player1 ? player1.rankingPoints : 1000,
-                    elo2: player2 ? player2.rankingPoints : 1000,
-                    headToHeadWinRate1,
-                };
+                    const matchData: MatchData = {
+                        player1Id,
+                        player2Id,
+                        winnerId,
+                        elo1: player1 ? player1.rankingPoints : 1000,
+                        elo2: player2 ? player2.rankingPoints : 1000,
+                        headToHeadWinRate1,
+                    };
 
-                mlModel.updateModel(matchData);
+                    mlModelRef.current.updateModel(matchData);
+                    await mlModelRef.current.saveWeights(); // Speichern der aktualisierten Gewichte
+                }
+
+                onDismiss();
+            } catch (error) {
+                console.error("Fehler beim Speichern des Matches:", error);
+                setErrorMessage('Fehler beim Speichern des Matches.');
             }
-
-            onDismiss();
         } else {
             setErrorMessage('Bitte geben Sie gültige Daten ein.');
         }
