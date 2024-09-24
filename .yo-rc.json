@@ -1,0 +1,21 @@
+{
+  "@microsoft/generator-sharepoint": {
+    "plusBeta": false,
+    "isCreatingSolution": true,
+    "nodeVersion": "16.19.0",
+    "sdksVersions": {
+      "@microsoft/microsoft-graph-client": "3.0.2",
+      "@microsoft/teams-js": "2.9.1"
+    },
+    "version": "1.17.3",
+    "libraryName": "smarter-table-tennis",
+    "libraryId": "3457e634-347a-4a8c-83da-5a792362b15d",
+    "environment": "spo",
+    "packageManager": "npm",
+    "solutionName": "Smarter.TableTennis",
+    "solutionShortDescription": "Smarter.TableTennis description",
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false,
+    "componentType": "webpart"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/config.2.0.schema.json",
+  "version": "2.0",
+  "bundles": {
+    "sbs-table-tennis-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/sbsTableTennis/SbsTableTennisWebPart.js",
+          "manifest": "./src/webparts/sbsTableTennis/SbsTableTennisWebPart.manifest.json"
+        }
+      ]
+    }
+  },
+  "externals": {},
+  "localizedResources": {
+    "SbsTableTennisWebPartStrings": "lib/webparts/sbsTableTennis/loc/{locale}.js"
+  }
+}
