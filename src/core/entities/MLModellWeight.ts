@@ -6,5 +6,6 @@ export interface MLModelWeight {
     Bias: number;
     WeightEloDifference: number;
     WeightHeadToHead: number;
+    WeightSetsDifference: number;
     LastUpdated: string; // ISO Date String
 }

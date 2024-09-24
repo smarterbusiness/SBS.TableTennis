@@ -98,7 +98,7 @@ export default class SPService implements ISPService {
         try {
             const items: MLModelWeight[] = await this.sp.web.lists.getByTitle("AIModelWeights")
                 .items
-                .select("Id", "Title", "Bias", "WeightEloDifference", "WeightHeadToHead", "LastUpdated")
+                .select("Id", "Title", "Bias", "WeightEloDifference", "WeightHeadToHead", "LastUpdated", "WeightSetsDifference")
                 .filter(`Title eq '${modelName}'`)();
 
             if (items.length > 0) {
@@ -406,5 +406,61 @@ export default class SPService implements ISPService {
             Datum: matchDateUTC // Speichern im UTC-Format
         });
     }
+    public async calculateHeadToHeadWinRate(player1Id: number, player2Id: number): Promise<number> {
+        const headToHeadWins1 = await this.getHeadToHeadWins(player1Id, player2Id);
+        const headToHeadMatches = await this.getHeadToHeadMatches(player1Id, player2Id);
+        const headToHeadTotal = headToHeadMatches.length;
+
+        return headToHeadTotal > 0 ? headToHeadWins1 / headToHeadTotal : 0.5;
+    }
+
+    /**
+     * Gibt die Anzahl der Head-to-Head-Wins von Spieler1 gegen Spieler2 zurück.
+     * @param player1Id ID von Spieler 1
+     * @param player2Id ID von Spieler 2
+     * @returns Anzahl der Wins von Spieler 1 gegen Spieler 2
+     */
+    private async getHeadToHeadWins(player1Id: number, player2Id: number): Promise<number> {
+        try {
+            const items = await this.sp.web.lists.getByTitle("Matches").items
+                .select("WinnerId")
+                .filter(`(Player1Id eq ${player1Id} and Player2Id eq ${player2Id}) or (Player1Id eq ${player2Id} and Player2Id eq ${player1Id})`)();
+
+            // Anzahl der Matches, bei denen Spieler1 gewonnen hat
+            const wins = items.filter(item => item.WinnerId === player1Id).length;
+            return wins;
+        } catch (error) {
+            console.error("Fehler beim Abrufen der Head-to-Head-Wins:", error);
+            return 0;
+        }
+    }
+
+    /**
+     * Gibt die Liste der Head-to-Head-Matches von Spieler1 gegen Spieler2 zurück.
+     * @param player1Id ID von Spieler 1
+     * @param player2Id ID von Spieler 2
+     * @returns Array von IMatch zwischen Spieler1 und Spieler2
+     */
+    private async getHeadToHeadMatches(player1Id: number, player2Id: number): Promise<IMatch[]> {
+        try {
+            const items = await this.sp.web.lists.getByTitle("Matches").items
+                .select("Id", "Player1Id", "Player2Id", "score1", "score2", "WinnerId", "Date")
+                .filter(`(Player1Id eq ${player1Id} and Player2Id eq ${player2Id}) or (Player1Id eq ${player2Id} and Player2Id eq ${player1Id})`)();
+
+            return items.map((item: any) => ({
+                id: item.Id,
+                player1Id: item.Player1Id,
+                player2Id: item.Player2Id,
+                score1: item.score1,
+                score2: item.score2,
+                winnerId: item.WinnerId,
+                date: new Date(item.Date)
+            }));
+        } catch (error) {
+            console.error("Fehler beim Abrufen der Head-to-Head-Matches:", error);
+            return [];
+        }
+    }
+
 
 }

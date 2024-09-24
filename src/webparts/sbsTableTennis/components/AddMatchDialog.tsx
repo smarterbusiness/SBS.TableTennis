@@ -29,8 +29,8 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
 
     const [player1Id, setPlayer1Id] = React.useState<number | undefined>();
     const [player2Id, setPlayer2Id] = React.useState<number | undefined>();
-    const [score1, setScore1] = React.useState<number>(0);
-    const [score2, setScore2] = React.useState<number>(0);
+    const [score1, setscore1] = React.useState<number>(0); // Anzahl der gewonnenen Sätze von Spieler 1
+    const [score2, setscore2] = React.useState<number>(0); // Anzahl der gewonnenen Sätze von Spieler 2
 
     const [winProbability1, setWinProbability1] = React.useState<number | null>(null);
     const [winProbability2, setWinProbability2] = React.useState<number | null>(null);
@@ -48,21 +48,21 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
         text: player.name,
     }));
 
-    // Memoize spService und modelName, um stabile Referenzen zu gewährleisten
+    // Verwende das Singleton, um SPService zu erhalten
     const spService = useMemo(() => new SPService(context), [context]);
-    const modelName = useMemo(() => "MatchPredictionModel", []); // konstante Zeichenkette
+    const modelName = "MatchPredictionModel"; // Name des Modells in der SharePoint-Liste
 
     // Verwende useRef, um die SimpleMLModel-Instanz zu speichern
     const mlModelRef = useRef<SimpleMLModel | null>(null);
 
-    // useEffect nur ausführen, wenn isOpen sich ändert
+    // Berechnung der Head-to-Head-Statistiken und Modelltraining beim Öffnen des Dialogs
     useEffect(() => {
         if (isOpen) {
             // Zustandsvariablen zurücksetzen
             setPlayer1Id(undefined);
             setPlayer2Id(undefined);
-            setScore1(0);
-            setScore2(0);
+            setscore1(0);
+            setscore2(0);
             setWinProbability1(null);
             setWinProbability2(null);
             setAiWinProbability1(null);
@@ -74,28 +74,30 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
             setHeadToHeadMap(statsMap);
 
             // Historische Daten vorbereiten
-            const matchesData: MatchData[] = allMatches.map((match) => {
-                const player1 = players.find((p) => p.id === match.player1Id);
-                const player2 = players.find((p) => p.id === match.player2Id);
-                const key = `${match.player1Id}-${match.player2Id}`;
-                const reverseKey = `${match.player2Id}-${match.player1Id}`;
-                const stats = statsMap.get(key) || statsMap.get(reverseKey);
+            const prepareMatchData = async () => {
+                const matchesData: MatchData[] = [];
 
-                // Berechne Head-to-Head-Winrate von Spieler 1 gegen Spieler 2
-                const headToHeadWinRate1 = stats && stats.total > 0 ? stats.wins1 / stats.total : 0.5;
+                for (const match of allMatches) {
+                    const player1 = players.find((p) => p.id === match.player1Id);
+                    const player2 = players.find((p) => p.id === match.player2Id);
 
-                return {
-                    player1Id: match.player1Id,
-                    player2Id: match.player2Id,
-                    winnerId: match.winnerId,
-                    elo1: player1 ? player1.rankingPoints : 1000,
-                    elo2: player2 ? player2.rankingPoints : 1000,
-                    headToHeadWinRate1,
-                };
-            });
+                    if (player1 && player2) {
+                        const headToHeadWinRate1 = await spService.calculateHeadToHeadWinRate(match.player1Id, match.player2Id);
 
-            // Modell initialisieren, Gewichte laden und trainieren
-            const initializeModel = async () => {
+                        matchesData.push({
+                            player1Id: match.player1Id,
+                            player2Id: match.player2Id,
+                            winnerId: match.winnerId,
+                            score1: match.score1, // Annahme: IMatch hat score1
+                            score2: match.score2, // Annahme: IMatch hat score2
+                            elo1: player1.rankingPoints,
+                            elo2: player2.rankingPoints,
+                            headToHeadWinRate1,
+                        });
+                    }
+                }
+
+                // Modell initialisieren, Gewichte laden und trainieren
                 try {
                     const model = new SimpleMLModel(modelName, spService);
                     await model.loadWeights();
@@ -107,7 +109,7 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
                 }
             };
 
-            initializeModel();
+            prepareMatchData();
         }
     }, [isOpen, allMatches, players, spService, modelName]);
 
@@ -139,6 +141,8 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
                     player1Id,
                     player2Id,
                     winnerId: 0, // Unbekannt beim Vorhersagen
+                    score1,
+                    score2,
                     elo1: R_A,
                     elo2: R_B,
                     headToHeadWinRate1,
@@ -190,7 +194,15 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
 
     // Handler für Speichern des Matches
     const handleSave = async () => {
-        if (player1Id && player2Id && player1Id !== player2Id && score1 >= 0 && score2 >= 0) {
+        if (
+            player1Id &&
+            player2Id &&
+            player1Id !== player2Id &&
+            score1 >= 0 &&
+            score2 >= 0 &&
+            (score1 === 2 || score2 === 2) &&
+            (score1 + score2 <= 3)
+        ) {
             const winnerId = score1 > score2 ? player1Id : player2Id;
             const match: IMatch = {
                 id: 0, // Die ID wird von SharePoint generiert
@@ -210,16 +222,14 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
                 if (mlModelRef.current) {
                     const player1 = players.find((p) => p.id === player1Id);
                     const player2 = players.find((p) => p.id === player2Id);
-                    const key = `${player1Id}-${player2Id}`;
-                    const reverseKey = `${player2Id}-${player1Id}`;
-                    const stats = headToHeadMap.get(key) || headToHeadMap.get(reverseKey);
-
-                    const headToHeadWinRate1 = stats && stats.total > 0 ? stats.wins1 / stats.total : 0.5;
+                    const headToHeadWinRate1 = await spService.calculateHeadToHeadWinRate(player1Id, player2Id);
 
                     const matchData: MatchData = {
                         player1Id,
                         player2Id,
                         winnerId,
+                        score1,
+                        score2,
                         elo1: player1 ? player1.rankingPoints : 1000,
                         elo2: player2 ? player2.rankingPoints : 1000,
                         headToHeadWinRate1,
@@ -235,7 +245,7 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
                 setErrorMessage('Fehler beim Speichern des Matches.');
             }
         } else {
-            setErrorMessage('Bitte geben Sie gültige Daten ein.');
+            setErrorMessage('Bitte geben Sie gültige Daten ein. Ein Match muss entweder 2-0 oder 2-1 Sätze haben.');
         }
     };
 
@@ -273,6 +283,37 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
                     />
                 </div>
 
+                <div className={styles.formRow}>
+                    <TextField
+                        label="Gewonnene Sätze Spieler 1"
+                        type="number"
+                        min={0}
+                        max={2}
+                        value={score1.toString()}
+                        onChange={(e, newValue) => {
+                            const val = Number(newValue);
+                            if (val >= 0 && val <= 2) {
+                                setscore1(val);
+                            }
+                        }}
+                        className={styles.formField}
+                    />
+                    <TextField
+                        label="Gewonnene Sätze Spieler 2"
+                        type="number"
+                        min={0}
+                        max={2}
+                        value={score2.toString()}
+                        onChange={(e, newValue) => {
+                            const val = Number(newValue);
+                            if (val >= 0 && val <= 2) {
+                                setscore2(val);
+                            }
+                        }}
+                        className={styles.formField}
+                    />
+                </div>
+
                 {/* ELO-basierte Gewinnwahrscheinlichkeit */}
                 {winProbability1 !== null && winProbability2 !== null && (
                     <div className={styles.winProbabilities}>
@@ -301,23 +342,6 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
                     </div>
                 )}
 
-                <div className={styles.formRow}>
-                    <TextField
-                        label="Score Spieler 1"
-                        type="number"
-                        value={score1.toString()}
-                        onChange={(e, newValue) => setScore1(Number(newValue))}
-                        className={styles.formField}
-                    />
-                    <TextField
-                        label="Score Spieler 2"
-                        type="number"
-                        value={score2.toString()}
-                        onChange={(e, newValue) => setScore2(Number(newValue))}
-                        className={styles.formField}
-                    />
-                </div>
-
                 {errorMessage && (
                     <MessageBar messageBarType={MessageBarType.error}>{errorMessage}</MessageBar>
                 )}
@@ -328,6 +352,7 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
             </DialogFooter>
         </Dialog>
     );
+
 };
 
 export default AddMatchDialog;

@@ -7,6 +7,8 @@ export interface MatchData {
     player1Id: number;
     player2Id: number;
     winnerId: number;
+    score1: number; // Anzahl der gewonnenen Sätze von Spieler 1
+    score2: number; // Anzahl der gewonnenen Sätze von Spieler 2
     elo1: number;
     elo2: number;
     headToHeadWinRate1: number; // Gewinnrate von Spieler 1 gegen Spieler 2
@@ -22,8 +24,8 @@ export class SimpleMLModel {
     constructor(modelName: string, spService: SPService) {
         this.modelName = modelName;
         this.spService = spService;
-        // Initialisiere die Gewichte [Bias, Gewicht für ELO-Differenz, Gewicht für Head-to-Head]
-        this.weights = [0, 0, 0];
+        // Initialisiere die Gewichte [Bias, Gewicht für ELO-Differenz, Gewicht für Head-to-Head, Gewicht für Sätze-Differenz]
+        this.weights = [0, 0, 0, 0];
     }
 
     /**
@@ -36,10 +38,11 @@ export class SimpleMLModel {
                 storedWeights.Bias,
                 storedWeights.WeightEloDifference,
                 storedWeights.WeightHeadToHead,
+                storedWeights.WeightSetsDifference,
             ];
             console.log("Modellgewichte geladen:", this.weights);
         } else {
-            console.log("Keine gespeicherten Gewichte gefunden. Modell initialisiert mit [0, 0, 0].");
+            console.log("Keine gespeicherten Gewichte gefunden. Modell initialisiert mit [0, 0, 0, 0].");
         }
     }
 
@@ -52,6 +55,7 @@ export class SimpleMLModel {
             Bias: this.weights[0],
             WeightEloDifference: this.weights[1],
             WeightHeadToHead: this.weights[2],
+            WeightSetsDifference: this.weights[3], // Neues Feld für Sätze-Differenz
             LastUpdated: new Date().toISOString(),
             // Id wird nicht gesetzt; SPService handhabt Update oder Add
         };
@@ -69,7 +73,7 @@ export class SimpleMLModel {
 
             for (const match of matches) {
                 const features = this.extractFeatures(match);
-                const z = this.weights[0] + this.weights[1] * features[1] + this.weights[2] * features[2];
+                const z = this.weights[0] + this.weights[1] * features[1] + this.weights[2] * features[2] + this.weights[3] * features[3];
                 const prediction = this.sigmoid(z);
                 const y = match.winnerId === match.player1Id ? 1 : 0;
                 const error = y - prediction;
@@ -78,6 +82,7 @@ export class SimpleMLModel {
                 this.weights[0] += this.learningRate * error; // Bias
                 this.weights[1] += this.learningRate * error * features[1]; // ELO-Differenz
                 this.weights[2] += this.learningRate * error * features[2]; // Head-to-Head-Winrate
+                this.weights[3] += this.learningRate * error * features[3]; // Sätze-Differenz
 
                 totalError += Math.abs(error);
             }
@@ -99,7 +104,7 @@ export class SimpleMLModel {
      */
     public predict(match: MatchData): number {
         const features = this.extractFeatures(match);
-        const z = this.weights[0] + this.weights[1] * features[1] + this.weights[2] * features[2];
+        const z = this.weights[0] + this.weights[1] * features[1] + this.weights[2] * features[2] + this.weights[3] * features[3];
         return this.sigmoid(z);
     }
 
@@ -107,7 +112,8 @@ export class SimpleMLModel {
         const x0 = 1; // Bias-Term
         const x1 = match.elo1 - match.elo2; // ELO-Differenz
         const x2 = match.headToHeadWinRate1; // Head-to-Head-Winrate
-        return [x0, x1, x2];
+        const x3 = match.score1 - match.score2; // Sätze-Differenz
+        return [x0, x1, x2, x3];
     }
 
     private sigmoid(z: number): number {
@@ -120,7 +126,7 @@ export class SimpleMLModel {
      */
     public updateModel(match: MatchData) {
         const features = this.extractFeatures(match);
-        const z = this.weights[0] + this.weights[1] * features[1] + this.weights[2] * features[2];
+        const z = this.weights[0] + this.weights[1] * features[1] + this.weights[2] * features[2] + this.weights[3] * features[3];
         const prediction = this.sigmoid(z);
         const y = match.winnerId === match.player1Id ? 1 : 0;
         const error = y - prediction;
@@ -129,6 +135,7 @@ export class SimpleMLModel {
         this.weights[0] += this.learningRate * error; // Bias
         this.weights[1] += this.learningRate * error * features[1]; // ELO-Differenz
         this.weights[2] += this.learningRate * error * features[2]; // Head-to-Head-Winrate
+        this.weights[3] += this.learningRate * error * features[3]; // Sätze-Differenz
 
         console.log("Modellgewichte nach Update:", this.weights);
     }
