@@ -3,16 +3,19 @@
   float: right;
 }
 
+// src/components/AddMatchDialog/AddMatchDialog.module.scss
+
 .dialogContent {
   display: flex;
   flex-direction: column;
+  padding: 20px;
 }
 
 .formRow {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 15px;
+  gap: 15px;
+  margin-bottom: 20px;
 }
 
 .formField {
@@ -21,13 +24,9 @@
 }
 
 .winProbabilities {
-  margin-bottom: 15px;
+  margin-bottom: 20px;
 }
 
 .winProbability {
   margin: 5px 0;
-}
-
-.errorMessage {
-  margin-bottom: 15px;
 }
