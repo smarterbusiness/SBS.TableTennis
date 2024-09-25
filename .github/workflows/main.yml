@@ -110,7 +110,7 @@ jobs:
         if: steps.changed_components.outputs.spfx == 'true'
         uses: actions/setup-node@v3
         with:
-          node-version: '14.x'  # Adjust as needed
+          node-version: '16.x'  # Adjust as needed
 
       - name: Install SPFx Global Packages
         if: steps.changed_components.outputs.spfx == 'true'
