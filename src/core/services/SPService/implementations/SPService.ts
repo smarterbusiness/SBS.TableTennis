@@ -100,7 +100,6 @@ export default class SPService implements ISPService {
                 .items
                 .select("Id", "Title", "Bias", "WeightEloDifference", "WeightHeadToHead", "LastUpdated", "WeightSetsDifference", "WeightPlayer1VsPlayer2", "WeightPlayer1VsPlayer3", "WeightPlayer1VsPlayer4", "WeightPlayer1VsPlayer5", "WeightPlayer2VsPlayer3", "WeightPlayer2VsPlayer4", "WeightPlayer2VsPlayer5", "WeightPlayer3VsPlayer4", "WeightPlayer3VsPlayer5", "WeightPlayer4VsPlayer5")
                 .filter(`Title eq '${modelName}'`)();
-
             if (items.length > 0) {
                 return items[0];
             } else {
@@ -123,6 +122,17 @@ export default class SPService implements ISPService {
                     Bias: weights.Bias,
                     WeightEloDifference: weights.WeightEloDifference,
                     WeightHeadToHead: weights.WeightHeadToHead,
+                    WeightSetsDifference: weights.WeightSetsDifference,
+                    WeightPlayer1VsPlayer2: weights.WeightPlayer1VsPlayer2,
+                    WeightPlayer1VsPlayer3: weights.WeightPlayer1VsPlayer3,
+                    WeightPlayer1VsPlayer4: weights.WeightPlayer1VsPlayer4,
+                    WeightPlayer1VsPlayer5: weights.WeightPlayer1VsPlayer5,
+                    WeightPlayer2VsPlayer3: weights.WeightPlayer2VsPlayer3,
+                    WeightPlayer2VsPlayer4: weights.WeightPlayer2VsPlayer4,
+                    WeightPlayer2VsPlayer5: weights.WeightPlayer2VsPlayer5,
+                    WeightPlayer3VsPlayer4: weights.WeightPlayer3VsPlayer4,
+                    WeightPlayer3VsPlayer5: weights.WeightPlayer3VsPlayer5,
+                    WeightPlayer4VsPlayer5: weights.WeightPlayer4VsPlayer5,
                     LastUpdated: new Date().toISOString(),
                 });
             } else {
@@ -444,7 +454,7 @@ export default class SPService implements ISPService {
     private async getHeadToHeadMatches(player1Id: number, player2Id: number): Promise<IMatch[]> {
         try {
             const items = await this.sp.web.lists.getByTitle("Matches").items
-                .select("Id", "Player1Id", "Player2Id", "score1", "score2", "WinnerId", "Date")
+                .select("Id", "Player1Id", "Player2Id", "Score1", "Score2", "WinnerId", "Datum")
                 .filter(`(Player1Id eq ${player1Id} and Player2Id eq ${player2Id}) or (Player1Id eq ${player2Id} and Player2Id eq ${player1Id})`)();
 
             return items.map((item: any) => ({

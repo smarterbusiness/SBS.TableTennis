@@ -35,6 +35,7 @@ export class SimpleMLModel {
 
     public async loadWeights(): Promise<void> {
         const storedWeights = await this.spService.getModelWeights(this.modelName);
+        console.log("Modellname:", this.modelName);
         if (storedWeights) {
             this.weights = [
                 storedWeights.Bias,
