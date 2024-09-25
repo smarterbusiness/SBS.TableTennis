@@ -9,4 +9,5 @@ export interface ISPService {
     addMatch(match: IMatch): Promise<void>;
     recalculateRankings(): Promise<void>;
     getPlayerEloHistory(playerId: number): Promise<PlayerEloHistoryEntry[]>;
+    calculateHeadToHeadWinRate(player1Id: number, player2Id: number): Promise<number>;
 }

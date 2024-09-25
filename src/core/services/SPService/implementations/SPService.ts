@@ -6,6 +6,7 @@ import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { IPlayer } from "../../../entities/Player";
 import { IMatch } from "../../../entities/Match";
 import { ISPService } from "../ISPService";
+import { MLModelWeight } from "../../../entities/MLModellWeight";
 
 
 export default class SPService implements ISPService {
@@ -90,6 +91,52 @@ export default class SPService implements ISPService {
         } catch (error) {
             console.error("Error fetching matches:", error);
             return [];
+        }
+    }
+
+    public async getModelWeights(modelName: string): Promise<MLModelWeight | null> {
+        try {
+            const items: MLModelWeight[] = await this.sp.web.lists.getByTitle("AIModelWeights")
+                .items
+                .select("Id", "Title", "Bias", "WeightEloDifference", "WeightHeadToHead", "LastUpdated", "WeightSetsDifference", "WeightPlayer1VsPlayer2", "WeightPlayer1VsPlayer3", "WeightPlayer1VsPlayer4", "WeightPlayer1VsPlayer5", "WeightPlayer2VsPlayer3", "WeightPlayer2VsPlayer4", "WeightPlayer2VsPlayer5", "WeightPlayer3VsPlayer4", "WeightPlayer3VsPlayer5", "WeightPlayer4VsPlayer5")
+                .filter(`Title eq '${modelName}'`)();
+
+            if (items.length > 0) {
+                return items[0];
+            } else {
+                console.warn(`Keine Modellgewichte für Modellname: ${modelName} gefunden.`);
+                return null;
+            }
+        } catch (error) {
+            console.error("Fehler beim Laden der Modellgewichte:", error);
+            return null;
+        }
+    }
+
+    public async saveModelWeights(modelName: string, weights: MLModelWeight): Promise<void> {
+        try {
+            const existingModel = await this.getModelWeights(modelName);
+
+            if (existingModel) {
+                // Update des bestehenden Eintrags
+                await this.sp.web.lists.getByTitle("AIModelWeights").items.getById(existingModel.Id!).update({
+                    Bias: weights.Bias,
+                    WeightEloDifference: weights.WeightEloDifference,
+                    WeightHeadToHead: weights.WeightHeadToHead,
+                    LastUpdated: new Date().toISOString(),
+                });
+            } else {
+                // Erstellung eines neuen Eintrags
+                await this.sp.web.lists.getByTitle("AIModelWeights").items.add({
+                    Title: modelName,
+                    Bias: weights.Bias,
+                    WeightEloDifference: weights.WeightEloDifference,
+                    WeightHeadToHead: weights.WeightHeadToHead,
+                    LastUpdated: new Date().toISOString(),
+                });
+            }
+        } catch (error) {
+            console.error("Fehler beim Speichern der Modellgewichte:", error);
         }
     }
 
@@ -359,5 +406,61 @@ export default class SPService implements ISPService {
             Datum: matchDateUTC // Speichern im UTC-Format
         });
     }
+    public async calculateHeadToHeadWinRate(player1Id: number, player2Id: number): Promise<number> {
+        const headToHeadWins1 = await this.getHeadToHeadWins(player1Id, player2Id);
+        const headToHeadMatches = await this.getHeadToHeadMatches(player1Id, player2Id);
+        const headToHeadTotal = headToHeadMatches.length;
+
+        return headToHeadTotal > 0 ? headToHeadWins1 / headToHeadTotal : 0.5;
+    }
+
+    /**
+     * Gibt die Anzahl der Head-to-Head-Wins von Spieler1 gegen Spieler2 zurück.
+     * @param player1Id ID von Spieler 1
+     * @param player2Id ID von Spieler 2
+     * @returns Anzahl der Wins von Spieler 1 gegen Spieler 2
+     */
+    private async getHeadToHeadWins(player1Id: number, player2Id: number): Promise<number> {
+        try {
+            const items = await this.sp.web.lists.getByTitle("Matches").items
+                .select("WinnerId")
+                .filter(`(Player1Id eq ${player1Id} and Player2Id eq ${player2Id}) or (Player1Id eq ${player2Id} and Player2Id eq ${player1Id})`)();
+
+            // Anzahl der Matches, bei denen Spieler1 gewonnen hat
+            const wins = items.filter(item => item.WinnerId === player1Id).length;
+            return wins;
+        } catch (error) {
+            console.error("Fehler beim Abrufen der Head-to-Head-Wins:", error);
+            return 0;
+        }
+    }
+
+    /**
+     * Gibt die Liste der Head-to-Head-Matches von Spieler1 gegen Spieler2 zurück.
+     * @param player1Id ID von Spieler 1
+     * @param player2Id ID von Spieler 2
+     * @returns Array von IMatch zwischen Spieler1 und Spieler2
+     */
+    private async getHeadToHeadMatches(player1Id: number, player2Id: number): Promise<IMatch[]> {
+        try {
+            const items = await this.sp.web.lists.getByTitle("Matches").items
+                .select("Id", "Player1Id", "Player2Id", "score1", "score2", "WinnerId", "Date")
+                .filter(`(Player1Id eq ${player1Id} and Player2Id eq ${player2Id}) or (Player1Id eq ${player2Id} and Player2Id eq ${player1Id})`)();
+
+            return items.map((item: any) => ({
+                id: item.Id,
+                player1Id: item.Player1Id,
+                player2Id: item.Player2Id,
+                score1: item.score1,
+                score2: item.score2,
+                winnerId: item.WinnerId,
+                date: new Date(item.Date)
+            }));
+        } catch (error) {
+            console.error("Fehler beim Abrufen der Head-to-Head-Matches:", error);
+            return [];
+        }
+    }
+
 
 }
