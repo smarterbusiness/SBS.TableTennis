@@ -11,8 +11,8 @@ import { addMatch } from '../../../core/state/matchSlice';
 import { IMatch } from '../../../core/entities/Match';
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import SPService from '../../../core/services/SPService/implementations/SPService';
-import { MatchData, SimpleMLModel } from '../../../core/MLModell/SimpleMLModell';
 import { calculateHeadToHeadStats } from '../../../core/MLModell/headToHeadHelper';
+import { SimpleMLModel, MatchData } from '../../../core/MLModell/SimpleMLModell';
 import styles from './SbsTableTennis.module.scss';
 
 export interface IAddMatchDialogProps {
@@ -88,8 +88,8 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
                             player1Id: match.player1Id,
                             player2Id: match.player2Id,
                             winnerId: match.winnerId,
-                            score1: match.score1, // Annahme: IMatch hat score1
-                            score2: match.score2, // Annahme: IMatch hat score2
+                            score1: match.score1,
+                            score2: match.score2,
                             elo1: player1.rankingPoints,
                             elo2: player2.rankingPoints,
                             headToHeadWinRate1,

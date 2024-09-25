@@ -1,0 +1,168 @@
+name: Bump version and Build Changed Components
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  build_and_release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for accurate change detection
+
+      # Use .NET Core 6
+      - name: Set up .NET Core
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '6.0.x'  # Updated to .NET Core 6
+
+      - name: Bump version and push tag
+        id: tag_version
+        uses: mathieudutour/github-tag-action@v6.2
+        with:
+          github_token: ${{ secrets.TOKEN }}
+
+      - name: Determine changed components
+        id: changed_components
+        uses: dorny/paths-filter@v3.0.2  # Updated to version 3.0.2
+        with:
+          filters: |
+            azure_functions:
+                - 'AzureFunctions/**'
+            spfx:
+                - 'SPFx/**'
+          list-files: 'shell'
+
+      - name: Debug Paths Filter Output
+        run: |
+          echo "Azure Functions Changed: ${{ steps.changed_components.outputs.azure_functions }}"
+          echo "Azure Functions Matched Files: ${{ steps.changed_components.outputs.azure_functions_files }}"
+          echo "SPFx Changed: ${{ steps.changed_components.outputs.spfx }}"
+          echo "SPFx Matched Files: ${{ steps.changed_components.outputs.spfx_files }}"
+
+      # Build and publish Azure Functions if they have changed
+      - name: Get list of changed Azure Function components
+        id: list_changed_azure
+        shell: bash
+        run: |
+          echo "Listing changed Azure Function components..."
+          if [ "${{ steps.changed_components.outputs.azure_functions }}" == "true" ]; then
+            CHANGED_FILES="${{ steps.changed_components.outputs.azure_functions_files }}"
+            echo "Changed files: $CHANGED_FILES"
+            # Extract component names
+            COMPONENTS=$(echo "$CHANGED_FILES" | xargs -n1 | awk -F'/' '{print $2}' | sort | uniq)
+            echo "Detected changed components:"
+            echo "$COMPONENTS"
+            # Use multiline syntax to set the output variable
+            echo "azure_components<<EOF" >> $GITHUB_OUTPUT
+            echo "$COMPONENTS" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "No Azure Function components changed."
+            echo "azure_components=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build changed Azure Functions
+        if: steps.list_changed_azure.outputs.azure_components != ''
+        shell: bash
+        run: |
+          COMPONENTS="${{ steps.list_changed_azure.outputs.azure_components }}"
+          echo "Components to build:"
+          echo "$COMPONENTS"
+          # Replace newlines with spaces
+          COMPONENTS=$(echo "$COMPONENTS" | tr '\n' ' ')
+          for component in $COMPONENTS; do
+            echo "Building Azure Function component: $component"
+            cd AzureFunctions/"$component"
+            dotnet restore
+            dotnet build --configuration Release
+            dotnet publish --configuration Release --output ./publish
+            cd ../..
+          done
+
+      - name: Package Azure Function artifacts
+        if: steps.list_changed_azure.outputs.azure_components != ''
+        shell: bash
+        run: |
+          mkdir -p release_artifacts/AzureFunctions
+          COMPONENTS="${{ steps.list_changed_azure.outputs.azure_components }}"
+          echo "Packaging components:"
+          echo "$COMPONENTS"
+          # Replace newlines with spaces
+          COMPONENTS=$(echo "$COMPONENTS" | tr '\n' ' ')
+          for component in $COMPONENTS; do
+            echo "Packaging Azure Function component: $component"
+            pushd "AzureFunctions/$component/publish"
+            zip -r "../../../release_artifacts/AzureFunctions/${component}.zip" ./*
+            popd
+          done
+
+      # Set up Node.js and install SPFx dependencies only if SPFx components have changed
+      - name: Set up Node.js
+        if: steps.changed_components.outputs.spfx == 'true'
+        uses: actions/setup-node@v3
+        with:
+          node-version: '14.x'  # Adjust as needed
+
+      - name: Install SPFx Global Packages
+        if: steps.changed_components.outputs.spfx == 'true'
+        run: |
+          npm install -g yo gulp @microsoft/generator-sharepoint  # Adjust versions as needed
+
+      - name: Get list of changed SPFx components
+        id: list_changed_spfx
+        if: steps.changed_components.outputs.spfx == 'true'
+        shell: bash
+        run: |
+          echo "Listing changed SPFx components..."
+          CHANGED_FILES="${{ steps.changed_components.outputs.spfx_files }}"
+          echo "Changed files: $CHANGED_FILES"
+          COMPONENTS=$(echo $CHANGED_FILES | xargs -n1 | awk -F'/' '{print $2}' | sort | uniq)
+          echo "Detected changed components: $COMPONENTS"
+          echo "spfx_components=$COMPONENTS" >> $GITHUB_OUTPUT
+
+      - name: Build changed SPFx components
+        if: steps.list_changed_spfx.outputs.spfx_components != ''
+        shell: bash
+        run: |
+          set +e  # Allow script to continue even if commands fail
+          for component in ${{ steps.list_changed_spfx.outputs.spfx_components }}; do
+            echo "Building SPFx component: $component"
+            cd SPFx/$component
+            npm install
+            gulp clean
+            gulp bundle --ship --no-fail-on-warning
+            gulp package-solution --ship --no-fail-on-warning
+            cd ../../..
+          done
+
+      - name: Package SPFx artifacts
+        if: steps.list_changed_spfx.outputs.spfx_components != ''
+        shell: bash
+        run: |
+          mkdir -p release_artifacts/SPFx
+          for component in ${{ steps.list_changed_spfx.outputs.spfx_components }}; do
+            echo "Packaging SPFx component: $component"
+            cp SPFx/$component/sharepoint/solution/*.sppkg release_artifacts/SPFx/${component}.sppkg
+          done
+
+      - name: Create a GitHub release
+        uses: ncipollo/release-action@v1
+        with:
+          token: ${{ secrets.TOKEN }}
+          tag: ${{ steps.tag_version.outputs.new_tag }}
+          name: Release ${{ steps.tag_version.outputs.new_tag }}
+          body: ${{ steps.tag_version.outputs.changelog }}
+          artifacts: |
+            release_artifacts/AzureFunctions/*.zip
+            release_artifacts/SPFx/*.sppkg
+          draft: false
+          prerelease: false

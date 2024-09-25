@@ -98,7 +98,7 @@ export default class SPService implements ISPService {
         try {
             const items: MLModelWeight[] = await this.sp.web.lists.getByTitle("AIModelWeights")
                 .items
-                .select("Id", "Title", "Bias", "WeightEloDifference", "WeightHeadToHead", "LastUpdated", "WeightSetsDifference")
+                .select("Id", "Title", "Bias", "WeightEloDifference", "WeightHeadToHead", "LastUpdated", "WeightSetsDifference", "WeightPlayer1VsPlayer2", "WeightPlayer1VsPlayer3", "WeightPlayer1VsPlayer4", "WeightPlayer1VsPlayer5", "WeightPlayer2VsPlayer3", "WeightPlayer2VsPlayer4", "WeightPlayer2VsPlayer5", "WeightPlayer3VsPlayer4", "WeightPlayer3VsPlayer5", "WeightPlayer4VsPlayer5")
                 .filter(`Title eq '${modelName}'`)();
 
             if (items.length > 0) {
