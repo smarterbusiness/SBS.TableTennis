@@ -10,6 +10,50 @@ define([], function() {
     "AppSharePointEnvironment": "The app is running on SharePoint page",
     "AppTeamsTabEnvironment": "The app is running in Microsoft Teams",
     "AppOfficeEnvironment": "The app is running in office.com",
-    "AppOutlookEnvironment": "The app is running in Outlook"
+    "AppOutlookEnvironment": "The app is running in Outlook",
+
+    // App UI
+    "LeaderboardTitle": "Leaderboard",
+    "ColumnName": "Name",
+    "ColumnRankingPoints": "Ranking Points",
+    "ColumnTotal": "Total",
+    "ColumnWins": "Wins",
+    "ColumnLosses": "Losses",
+    "ColumnSetDifference": "Set Difference",
+    "AddMatchButton": "Add Match",
+    "RecalculateRankingsButton": "Recalculate Rankings",
+    "AriaToggleSelection": "Toggle selection",
+    "AriaToggleSelectionAll": "Toggle selection for all items",
+    "MedalFirstPlaceAria": "first place",
+    "MedalSecondPlaceAria": "second place",
+    "MedalThirdPlaceAria": "third place",
+
+    // AddMatchDialog
+    "AddMatchDialogTitle": "Add New Match",
+    "Close": "Close",
+    "SelectPlayer1Placeholder": "Select player 1",
+    "SelectPlayer2Placeholder": "Select player 2",
+    "Player1Label": "Player 1",
+    "Player2Label": "Player 2",
+    "SetsWonPlayer1Label": "Sets won by Player 1",
+    "SetsWonPlayer2Label": "Sets won by Player 2",
+    "EloWinChanceFor": "{0}: {1}% win chance (ELO)",
+    "AiWinChanceFor": "AI prediction for {0}: {1}% win chance (AI)",
+    "PlayersMustDiffer": "Player 1 and Player 2 must be different.",
+    "ErrorSavingMatch": "Error while saving the match.",
+    "InvalidMatchData": "Please enter valid data. A match must be either 2-0 or 2-1 sets.",
+    "Save": "Save",
+    "Cancel": "Cancel",
+
+    // PlayerStatsDialog
+    "PlayerStatsTitle": "Statistics for {0}",
+    "CurrentElo": "Current ELO rating:",
+    "TotalGames": "Total games:",
+    "Wins": "Wins:",
+    "Losses": "Losses:",
+    "SetDifference": "Set difference:",
+    "LoadingEloHistory": "Loading ELO history...",
+    "EloProgressThisMonth": "ELO progression this month",
+    "EloRatingLegend": "ELO rating"
   }
 });

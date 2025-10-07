@@ -6,6 +6,7 @@ import { LineChart, ILineChartDataPoint } from '@fluentui/react-charting';
 import { useAppDispatch, useAppSelector } from '../../../../core/state/hook';
 import { fetchPlayerEloHistory } from '../../../../core/state/playerSlice';
 import { IPlayer } from '../../../../core/entities/Player';
+import * as strings from 'SbsTableTennisWebPartStrings';
 
 interface PlayerStatsDialogProps {
     player: IPlayer;
@@ -29,13 +30,15 @@ const PlayerStatsDialog: React.FC<PlayerStatsDialogProps> = ({ player, onDismiss
         }))
         : [];
 
+    const fmt = (s: string, ...args: any[]) => s.replace(/\{(\d+)\}/g, (_m, i) => String(args[i]));
+
     return (
         <Dialog
             hidden={false}
             onDismiss={onDismiss}
             dialogContentProps={{
                 type: DialogType.largeHeader,
-                title: `Statistiken für ${player.name}`,
+                title: fmt(strings.PlayerStatsTitle, player.name),
             }}
             modalProps={{
                 isBlocking: false,
@@ -44,21 +47,21 @@ const PlayerStatsDialog: React.FC<PlayerStatsDialogProps> = ({ player, onDismiss
             maxWidth={800}
         >
             <div>
-                <p>Aktuelle ELO-Wertung: {player.rankingPoints}</p>
-                <p>Gesamtspiele: {player.gesamt}</p>
-                <p>Siege: {player.wins}</p>
-                <p>Niederlagen: {player.losses}</p>
-                <p>Satzdifferenz: {player.setDifference}</p>
+                <p>{strings.CurrentElo} {player.rankingPoints}</p>
+                <p>{strings.TotalGames} {player.gesamt}</p>
+                <p>{strings.Wins} {player.wins}</p>
+                <p>{strings.Losses} {player.losses}</p>
+                <p>{strings.SetDifference} {player.setDifference}</p>
             </div>
             {isLoading ? (
-                <Spinner label="Lade ELO-Historie..." size={SpinnerSize.medium} />
+                <Spinner label={strings.LoadingEloHistory} size={SpinnerSize.medium} />
             ) : (
                 <LineChart
                     data={{
-                        chartTitle: 'ELO-Entwicklung im aktuellen Monat',
+                        chartTitle: strings.EloProgressThisMonth,
                         lineChartData: [
                             {
-                                legend: 'ELO-Wertung',
+                                legend: strings.EloRatingLegend,
                                 data: dataPoints,
                                 color: '#0078D4',
                             },
@@ -73,10 +76,11 @@ const PlayerStatsDialog: React.FC<PlayerStatsDialogProps> = ({ player, onDismiss
                 />
             )}
             <DialogFooter>
-                <DefaultButton onClick={onDismiss} text="Schließen" />
+                <DefaultButton onClick={onDismiss} text={strings.Close} />
             </DialogFooter>
         </Dialog>
     );
 };
 
 export default PlayerStatsDialog;
+

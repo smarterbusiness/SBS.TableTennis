@@ -14,11 +14,12 @@ import SPService from '../../../core/services/SPService/implementations/SPServic
 import { calculateHeadToHeadStats } from '../../../core/MLModell/headToHeadHelper';
 import { SimpleMLModel, MatchData } from '../../../core/MLModell/SimpleMLModell';
 import styles from './SbsTableTennis.module.scss';
+import * as strings from 'SbsTableTennisWebPartStrings';
 
 export interface IAddMatchDialogProps {
     isOpen: boolean;
     onDismiss: () => void;
-    context: WebPartContext; // Stelle sicher, dass der WebPartContext übergeben wird
+    context: WebPartContext;
 }
 
 const AddMatchDialog = (props: IAddMatchDialogProps) => {
@@ -29,8 +30,8 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
 
     const [player1Id, setPlayer1Id] = React.useState<number | undefined>();
     const [player2Id, setPlayer2Id] = React.useState<number | undefined>();
-    const [score1, setscore1] = React.useState<number>(0); // Anzahl der gewonnenen Sätze von Spieler 1
-    const [score2, setscore2] = React.useState<number>(0); // Anzahl der gewonnenen Sätze von Spieler 2
+    const [score1, setscore1] = React.useState<number>(0);
+    const [score2, setscore2] = React.useState<number>(0);
 
     const [winProbability1, setWinProbability1] = React.useState<number | null>(null);
     const [winProbability2, setWinProbability2] = React.useState<number | null>(null);
@@ -48,17 +49,14 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
         text: player.name,
     }));
 
-    // Verwende das Singleton, um SPService zu erhalten
     const spService = useMemo(() => new SPService(context), [context]);
-    const modelName = "MatchPredictionModel"; // Name des Modells in der SharePoint-Liste
+    const modelName = "MatchPredictionModel";
+    const fmt = (s: string, ...args: any[]) => s.replace(/\{(\d+)\}/g, (_m, i) => String(args[i]));
 
-    // Verwende useRef, um die SimpleMLModel-Instanz zu speichern
     const mlModelRef = useRef<SimpleMLModel | null>(null);
 
-    // Berechnung der Head-to-Head-Statistiken und Modelltraining beim Öffnen des Dialogs
     useEffect(() => {
         if (isOpen) {
-            // Zustandsvariablen zurücksetzen
             setPlayer1Id(undefined);
             setPlayer2Id(undefined);
             setscore1(0);
@@ -69,11 +67,9 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
             setAiWinProbability2(null);
             setErrorMessage(null);
 
-            // Head-to-Head-Statistiken berechnen
             const statsMap = calculateHeadToHeadStats(allMatches);
             setHeadToHeadMap(statsMap);
 
-            // Historische Daten vorbereiten
             const prepareMatchData = async () => {
                 const matchesData: MatchData[] = [];
 
@@ -97,7 +93,6 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
                     }
                 }
 
-                // Modell initialisieren, Gewichte laden und trainieren
                 try {
                     const model = new SimpleMLModel(modelName, spService);
                     await model.loadWeights();
@@ -105,7 +100,7 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
                     mlModelRef.current = model;
                 } catch (error) {
                     console.error("Fehler beim Initialisieren des Modells:", error);
-                    setErrorMessage('Fehler beim Initialisieren des KI-Modells.');
+                    setErrorMessage(strings.ErrorSavingMatch);
                 }
             };
 
@@ -113,13 +108,11 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
         }
     }, [isOpen, allMatches, players, spService, modelName]);
 
-    // Funktion zur Berechnung der Gewinnwahrscheinlichkeiten
     const calculateWinProbabilities = (player1Id: number, player2Id: number) => {
         const player1 = players.find((p) => p.id === player1Id);
         const player2 = players.find((p) => p.id === player2Id);
 
         if (player1 && player2) {
-            // ELO-basierte Gewinnwahrscheinlichkeit
             const R_A = player1.rankingPoints;
             const R_B = player2.rankingPoints;
 
@@ -129,18 +122,16 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
             setWinProbability1(E_A);
             setWinProbability2(E_B);
 
-            // Head-to-Head-Winrate berechnen
             const key = `${player1Id}-${player2Id}`;
             const reverseKey = `${player2Id}-${player1Id}`;
             const stats = headToHeadMap.get(key) || headToHeadMap.get(reverseKey);
             const headToHeadWinRate1 = stats && stats.total > 0 ? stats.wins1 / stats.total : 0.5;
 
-            // KI-basierte Gewinnwahrscheinlichkeit berechnen
             if (mlModelRef.current) {
                 const matchData: MatchData = {
                     player1Id,
                     player2Id,
-                    winnerId: 0, // Unbekannt beim Vorhersagen
+                    winnerId: 0,
                     score1,
                     score2,
                     elo1: R_A,
@@ -154,7 +145,6 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
         }
     };
 
-    // Handler für Spieler 1 Auswahl
     const handlePlayer1Change = (e: React.FormEvent<HTMLDivElement>, option?: IDropdownOption) => {
         const selectedPlayer1Id = option?.key as number;
         setPlayer1Id(selectedPlayer1Id);
@@ -168,12 +158,11 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
             setAiWinProbability1(null);
             setAiWinProbability2(null);
             if (selectedPlayer1Id === player2Id) {
-                setErrorMessage('Spieler 1 und Spieler 2 dürfen nicht identisch sein.');
+                setErrorMessage(strings.PlayersMustDiffer);
             }
         }
     };
 
-    // Handler für Spieler 2 Auswahl
     const handlePlayer2Change = (e: React.FormEvent<HTMLDivElement>, option?: IDropdownOption) => {
         const selectedPlayer2Id = option?.key as number;
         setPlayer2Id(selectedPlayer2Id);
@@ -187,12 +176,11 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
             setAiWinProbability1(null);
             setAiWinProbability2(null);
             if (player1Id === selectedPlayer2Id) {
-                setErrorMessage('Spieler 1 und Spieler 2 dürfen nicht identisch sein.');
+                setErrorMessage(strings.PlayersMustDiffer);
             }
         }
     };
 
-    // Handler für Speichern des Matches
     const handleSave = async () => {
         if (
             player1Id &&
@@ -205,7 +193,7 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
         ) {
             const winnerId = score1 > score2 ? player1Id : player2Id;
             const match: IMatch = {
-                id: 0, // Die ID wird von SharePoint generiert
+                id: 0,
                 player1Id,
                 player2Id,
                 score1,
@@ -215,10 +203,8 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
             };
 
             try {
-                // Speichere das Match über den Redux-Dispatcher
                 await dispatch(addMatch(match)).unwrap();
 
-                // Modell aktualisieren
                 if (mlModelRef.current) {
                     const player1 = players.find((p) => p.id === player1Id);
                     const player2 = players.find((p) => p.id === player2Id);
@@ -236,16 +222,16 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
                     };
 
                     mlModelRef.current.updateModel(matchData);
-                    await mlModelRef.current.saveWeights(); // Speichern der aktualisierten Gewichte
+                    await mlModelRef.current.saveWeights();
                 }
 
                 onDismiss();
             } catch (error) {
                 console.error("Fehler beim Speichern des Matches:", error);
-                setErrorMessage('Fehler beim Speichern des Matches.');
+                setErrorMessage(strings.ErrorSavingMatch);
             }
         } else {
-            setErrorMessage('Bitte geben Sie gültige Daten ein. Ein Match muss entweder 2-0 oder 2-1 Sätze haben.');
+            setErrorMessage(strings.InvalidMatchData);
         }
     };
 
@@ -255,8 +241,8 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
             onDismiss={onDismiss}
             dialogContentProps={{
                 type: DialogType.largeHeader,
-                title: 'Neues Match hinzufügen',
-                closeButtonAriaLabel: 'Close',
+                title: strings.AddMatchDialogTitle,
+                closeButtonAriaLabel: strings.Close,
             }}
             modalProps={{
                 isBlocking: false,
@@ -266,16 +252,16 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
             <div className={styles.dialogContent}>
                 <div className={styles.formRow}>
                     <Dropdown
-                        placeholder="Wählen Sie Spieler 1"
-                        label="Spieler 1"
+                        placeholder={strings.SelectPlayer1Placeholder}
+                        label={strings.Player1Label}
                         options={playerOptions}
                         onChange={handlePlayer1Change}
                         className={styles.formField}
                         selectedKey={player1Id}
                     />
                     <Dropdown
-                        placeholder="Wählen Sie Spieler 2"
-                        label="Spieler 2"
+                        placeholder={strings.SelectPlayer2Placeholder}
+                        label={strings.Player2Label}
                         options={playerOptions}
                         onChange={handlePlayer2Change}
                         className={styles.formField}
@@ -285,7 +271,7 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
 
                 <div className={styles.formRow}>
                     <TextField
-                        label="Gewonnene Sätze Spieler 1"
+                        label={strings.SetsWonPlayer1Label}
                         type="number"
                         min={0}
                         max={2}
@@ -299,7 +285,7 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
                         className={styles.formField}
                     />
                     <TextField
-                        label="Gewonnene Sätze Spieler 2"
+                        label={strings.SetsWonPlayer2Label}
                         type="number"
                         min={0}
                         max={2}
@@ -314,29 +300,27 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
                     />
                 </div>
 
-                {/* ELO-basierte Gewinnwahrscheinlichkeit */}
                 {winProbability1 !== null && winProbability2 !== null && (
                     <div className={styles.winProbabilities}>
                         <MessageBar messageBarType={MessageBarType.info}>
                             <p className={styles.winProbability}>
-                                <strong>{players.find((p) => p.id === player1Id)?.name}</strong>: {(winProbability1 * 100).toFixed(2)}% Gewinnchance (ELO)
+                                {fmt(strings.EloWinChanceFor, players.find((p) => p.id === player1Id)?.name ?? '', (winProbability1 * 100).toFixed(2))}
                             </p>
                             <p className={styles.winProbability}>
-                                <strong>{players.find((p) => p.id === player2Id)?.name}</strong>: {(winProbability2 * 100).toFixed(2)}% Gewinnchance (ELO)
+                                {fmt(strings.EloWinChanceFor, players.find((p) => p.id === player2Id)?.name ?? '', (winProbability2 * 100).toFixed(2))}
                             </p>
                         </MessageBar>
                     </div>
                 )}
 
-                {/* KI-basierte Gewinnwahrscheinlichkeit */}
                 {aiWinProbability1 !== null && aiWinProbability2 !== null && (
                     <div className={styles.winProbabilities}>
                         <MessageBar messageBarType={MessageBarType.success}>
                             <p className={styles.winProbability}>
-                                <strong>KI-Prognose für {players.find((p) => p.id === player1Id)?.name}</strong>: {(aiWinProbability1 * 100).toFixed(2)}% Gewinnchance (KI)
+                                {fmt(strings.AiWinChanceFor, players.find((p) => p.id === player1Id)?.name ?? '', (aiWinProbability1 * 100).toFixed(2))}
                             </p>
                             <p className={styles.winProbability}>
-                                <strong>KI-Prognose für {players.find((p) => p.id === player2Id)?.name}</strong>: {(aiWinProbability2 * 100).toFixed(2)}% Gewinnchance (KI)
+                                {fmt(strings.AiWinChanceFor, players.find((p) => p.id === player2Id)?.name ?? '', (aiWinProbability2 * 100).toFixed(2))}
                             </p>
                         </MessageBar>
                     </div>
@@ -347,12 +331,12 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
                 )}
             </div>
             <DialogFooter>
-                <PrimaryButton onClick={handleSave} text="Speichern" />
-                <DefaultButton onClick={onDismiss} text="Abbrechen" />
+                <PrimaryButton onClick={handleSave} text={strings.Save} />
+                <DefaultButton onClick={onDismiss} text={strings.Cancel} />
             </DialogFooter>
         </Dialog>
     );
-
 };
 
 export default AddMatchDialog;
+

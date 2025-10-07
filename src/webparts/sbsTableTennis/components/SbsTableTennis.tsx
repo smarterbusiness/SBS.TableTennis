@@ -10,6 +10,7 @@ import { Link } from '@fluentui/react/lib/Link';
 import { IPlayer } from '../../../core/entities/Player';
 import PlayerStatsDialog from './costumComponents/PlayerStatsDialog';
 import AddMatchDialog from './AddMatchDialog';
+import * as strings from 'SbsTableTennisWebPartStrings';
 
 const SbsTableTennis = (props: ISbsTableTennisProps) => {
   const dispatch = useAppDispatch();
@@ -42,7 +43,7 @@ const SbsTableTennis = (props: ISbsTableTennisProps) => {
       onRender: (_item: IPlayer, index?: number) => {
         if (index === undefined || index > 2) return null;
         const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉';
-        const label = index === 0 ? 'first place' : index === 1 ? 'second place' : 'third place';
+        const label = index === 0 ? strings.MedalFirstPlaceAria : index === 1 ? strings.MedalSecondPlaceAria : strings.MedalThirdPlaceAria;
         return (
           <span role="img" aria-label={label} style={{ display: 'block', textAlign: 'center' }}>{medal}</span>
         );
@@ -50,7 +51,7 @@ const SbsTableTennis = (props: ISbsTableTennisProps) => {
     },
     {
       key: 'column1',
-      name: 'Name',
+      name: strings.ColumnName,
       fieldName: 'name',
       minWidth: 150,
       maxWidth: 200,
@@ -59,11 +60,11 @@ const SbsTableTennis = (props: ISbsTableTennisProps) => {
         <Link onClick={() => handlePlayerClick(item)}>{item.name}</Link>
       ),
     },
-    { key: 'column2', name: 'Rangpunkte', fieldName: 'rankingPoints', minWidth: 50, maxWidth: 100, isResizable: true, data: 'number', isMultiline: true },
-    { key: 'column3', name: 'Gesamt', fieldName: 'gesamt', minWidth: 50, maxWidth: 100, isResizable: true, data: 'number' },
-    { key: 'column4', name: 'Siege', fieldName: 'wins', minWidth: 50, maxWidth: 100, isResizable: true, data: 'number' },
-    { key: 'column5', name: 'Niederlagen', fieldName: 'losses', minWidth: 50, maxWidth: 100, isResizable: true, data: 'number' },
-    { key: 'column6', name: 'Satzdifferenz', fieldName: 'setDifference', minWidth: 50, maxWidth: 100, isResizable: true, data: 'number' }
+    { key: 'column2', name: strings.ColumnRankingPoints, fieldName: 'rankingPoints', minWidth: 50, maxWidth: 100, isResizable: true, data: 'number', isMultiline: true },
+    { key: 'column3', name: strings.ColumnTotal, fieldName: 'gesamt', minWidth: 50, maxWidth: 100, isResizable: true, data: 'number' },
+    { key: 'column4', name: strings.ColumnWins, fieldName: 'wins', minWidth: 50, maxWidth: 100, isResizable: true, data: 'number' },
+    { key: 'column5', name: strings.ColumnLosses, fieldName: 'losses', minWidth: 50, maxWidth: 100, isResizable: true, data: 'number' },
+    { key: 'column6', name: strings.ColumnSetDifference, fieldName: 'setDifference', minWidth: 50, maxWidth: 100, isResizable: true, data: 'number' }
   ];
 
   const handleRecalculate = () => {
@@ -81,7 +82,7 @@ const SbsTableTennis = (props: ISbsTableTennisProps) => {
 
   return (
     <div>
-      <h1>Leaderboard</h1>
+      <h1>{strings.LeaderboardTitle}</h1>
       <DetailsList
         items={sortedPlayers}
         columns={columns}
@@ -90,12 +91,12 @@ const SbsTableTennis = (props: ISbsTableTennisProps) => {
         onRenderRow={onRenderRow}
         selectionMode={SelectionMode.none}
         selectionPreservedOnEmptyClick={true}
-        ariaLabelForSelectionColumn="Toggle selection"
-        ariaLabelForSelectAllCheckbox="Toggle selection for all items"
+        ariaLabelForSelectionColumn={strings.AriaToggleSelection}
+        ariaLabelForSelectAllCheckbox={strings.AriaToggleSelectionAll}
         styles={{ root: { width: '100%' } }}
       />
-      <PrimaryButton className={styles.button} text="Add Match" onClick={() => setIsDialogOpen(true)} />
-      <PrimaryButton className={styles.button} text="Recalculate Rankings" onClick={handleRecalculate} />
+      <PrimaryButton className={styles.button} text={strings.AddMatchButton} onClick={() => setIsDialogOpen(true)} />
+      <PrimaryButton className={styles.button} text={strings.RecalculateRankingsButton} onClick={handleRecalculate} />
       <AddMatchDialog isOpen={isDialogOpen} onDismiss={async () => setIsDialogOpen(false)} context={props.context} />
       {selectedPlayer && (
         <PlayerStatsDialog player={selectedPlayer} onDismiss={closePlayerDialog} />
