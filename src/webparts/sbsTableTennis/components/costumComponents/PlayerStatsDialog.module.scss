@@ -1,5 +1,428 @@
-// src/components/costumComponents/PlayerStatsDialog.module.scss
+// Modern professional design for PlayerStatsDialog
 
+// Dialog styling
+.playerDialog {
+    .ms-Dialog-main {
+        border-radius: 12px;
+        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.15);
+        overflow: hidden;
+    }
+}
+
+.dialogContent {
+    padding: 0;
+    min-height: 500px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+}
+
+.statsPivot {
+    .ms-Pivot {
+        padding: 0 24px;
+        background: white;
+        border-bottom: 1px solid #e1e1e1;
+    }
+    
+    .ms-Pivot-link {
+        font-size: 16px;
+        font-weight: 600;
+        padding: 16px 20px;
+        transition: all 0.3s ease;
+        
+        &:hover {
+            background-color: #f3f2f1;
+            color: #0078d4;
+        }
+        
+        i {
+            margin-right: 8px;
+        }
+    }
+    
+    .ms-Pivot-link.is-selected {
+        color: #0078d4;
+        background-color: #f3f2f1;
+        
+        &::before {
+            background-color: #0078d4;
+            height: 3px;
+        }
+    }
+}
+
+.pivotItem {
+    padding: 0;
+}
+
+// Modern stats container
+.modernStatsContainer {
+    padding: 24px;
+    min-height: 480px;
+}
+
+// Player Header Section
+.playerHeader {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(0, 120, 212, 0.1);
+}
+
+.playerInfo {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.playerAvatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #0078d4 0%, #106ebe 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 120, 212, 0.3);
+}
+
+.avatarIcon {
+    font-size: 36px;
+    color: white;
+}
+
+.playerDetails {
+    flex: 1;
+}
+
+.playerName {
+    color: #323130;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.eloDisplay {
+    display: flex;
+    align-items: center;
+    margin-bottom: 4px;
+    gap: 12px;
+}
+
+.eloClass {
+    color: white;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.viewType {
+    color: #8a8886;
+    font-weight: 500;
+}
+
+// Metrics Grid
+.metricsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+}
+
+.metricCard {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    border: 1px solid #f1f1f1;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    
+    &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+        border-color: #0078d4;
+    }
+    
+    &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: linear-gradient(135deg, #0078d4, #106ebe);
+        transform: scaleY(0);
+        transition: transform 0.3s ease;
+    }
+    
+    &:hover::before {
+        transform: scaleY(1);
+    }
+}
+
+.metricIcon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: #f8f9fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    i {
+        font-size: 24px;
+    }
+}
+
+.metricContent {
+    flex: 1;
+}
+
+.metricValue {
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.2;
+    margin-bottom: 4px;
+    color: #323130;
+}
+
+.metricLabel {
+    font-size: 13px;
+    color: #8a8886;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+// Advanced Metrics Section
+.advancedMetrics {
+    margin-top: 32px;
+    margin-bottom: 32px;
+}
+
+.sectionTitle {
+    color: #323130;
+    font-weight: 700;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #e1e1e1;
+    position: relative;
+    
+    &::after {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        width: 60px;
+        height: 2px;
+        background: linear-gradient(90deg, #0078d4, #106ebe);
+    }
+}
+
+.insightsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 16px;
+}
+
+.insightCard {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    border-left: 4px solid transparent;
+    transition: all 0.3s ease;
+    
+    &:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+        border-left-color: #0078d4;
+    }
+}
+
+.insightHeader {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.insightTitle {
+    font-weight: 600;
+    color: #323130;
+}
+
+.insightValue {
+    font-size: 16px;
+    color: #605e5c;
+    font-weight: 500;
+}
+
+// Chart Container
+.chartContainer {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border: 1px solid #f1f1f1;
+}
+
+.chartWrapper {
+    margin: 20px 0;
+    display: flex;
+    justify-content: center;
+    
+    .ms-LineChart {
+        border-radius: 8px;
+    }
+}
+
+.chartInsights {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #f1f1f1;
+}
+
+.chartStat {
+    text-align: center;
+    padding: 8px 16px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    
+    span {
+        color: #605e5c;
+        font-weight: 500;
+    }
+}
+
+// Loading State
+.loadingContainer {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 300px;
+    background: white;
+    border-radius: 12px;
+    margin: 24px;
+}
+
+// Dialog Footer
+.dialogFooter {
+    background: white;
+    border-top: 1px solid #e1e1e1;
+    padding: 16px 24px;
+}
+
+// Responsive Design
+@media (max-width: 1024px) {
+    .metricsGrid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .insightsGrid {
+        grid-template-columns: 1fr;
+    }
+    
+    .chartWrapper {
+        overflow-x: auto;
+    }
+}
+
+@media (max-width: 768px) {
+    .modernStatsContainer {
+        padding: 16px;
+    }
+    
+    .playerHeader {
+        padding: 16px;
+    }
+    
+    .playerInfo {
+        flex-direction: column;
+        text-align: center;
+        gap: 16px;
+    }
+    
+    .playerAvatar {
+        width: 64px;
+        height: 64px;
+    }
+    
+    .avatarIcon {
+        font-size: 28px;
+    }
+    
+    .metricsGrid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    
+    .metricCard {
+        padding: 16px;
+    }
+    
+    .metricValue {
+        font-size: 24px;
+    }
+    
+    .chartContainer {
+        padding: 16px;
+        margin: 16px 0;
+    }
+}
+
+@media (max-width: 480px) {
+    .dialogContent {
+        min-height: 400px;
+    }
+    
+    .modernStatsContainer {
+        padding: 12px;
+    }
+    
+    .playerHeader {
+        padding: 12px;
+        margin-bottom: 16px;
+    }
+    
+    .metricCard {
+        padding: 12px;
+        gap: 12px;
+    }
+    
+    .metricIcon {
+        width: 40px;
+        height: 40px;
+        
+        i {
+            font-size: 20px;
+        }
+    }
+    
+    .metricValue {
+        font-size: 20px;
+    }
+    
+    .insightCard {
+        padding: 16px;
+    }
+    
+    .chartInsights {
+        flex-direction: column;
+        gap: 8px;
+    }
+}
+
+// Legacy card styles (for backward compatibility if needed)
 .cardContainer {
     display: flex;
     flex-wrap: wrap;
@@ -14,9 +437,23 @@
     padding: 16px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     flex: 1 1 250px;
+    
+    h3 {
+        margin-top: 0;
+        font-size: 1.2rem;
+        color: #333333;
+        border-bottom: 1px solid #dddddd;
+        padding-bottom: 8px;
+        margin-bottom: 12px;
+    }
+    
+    p {
+        margin: 4px 0;
+        font-size: 0.95rem;
+        color: #555555;
+    }
 }
 
-/* Feste Größe für den Graphenbereich */
 .graphCard {
     width: 600px;
     height: 300px;
@@ -24,19 +461,4 @@
     flex-direction: column;
     justify-content: center;
     align-items: center;
-}
-
-.card h3 {
-    margin-top: 0;
-    font-size: 1.2rem;
-    color: #333333;
-    border-bottom: 1px solid #dddddd;
-    padding-bottom: 8px;
-    margin-bottom: 12px;
-}
-
-.card p {
-    margin: 4px 0;
-    font-size: 0.95rem;
-    color: #555555;
 }
