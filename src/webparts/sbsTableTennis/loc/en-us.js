@@ -47,13 +47,25 @@ define([], function() {
 
     // PlayerStatsDialog
     "PlayerStatsTitle": "Statistics for {0}",
-    "CurrentElo": "Current ELO rating:",
-    "TotalGames": "Total games:",
-    "Wins": "Wins:",
-    "Losses": "Losses:",
-    "SetDifference": "Set difference:",
+    "CurrentElo": "Current ELO rating",
+    "TotalGames": "Total games",
+    "Wins": "Wins",
+    "Losses": "Losses",
+    "SetDifference": "Set difference",
     "LoadingEloHistory": "Loading ELO history...",
     "EloProgressThisMonth": "ELO progression this month",
-    "EloRatingLegend": "ELO rating"
+    "EloRatingLegend": "ELO rating",
+    "EloProgress": "ELO progression",
+    "BasicStats": "Basic statistics",
+    "AdditionalStats": "Additional statistics",
+    "AllTimeStatsLabel": "(All-Time)",
+    "CurrentStatsLabel": "(Current)",
+    "AllTimeStatsTab": "All-Time Stats",
+    "CurrentStatsTab": "Current Stats",
+    "WinningStreak": "Winning Streak",
+    "RecentWinRate": "Recent Win Rate",
+    "AvgMargin": "Avg. Margin",
+    "CurrentWinningStreak": "Current winning streak",
+    "CalculatingStats": "Calculating statistics..."
   }
 });

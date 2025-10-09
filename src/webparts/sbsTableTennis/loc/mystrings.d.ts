@@ -53,6 +53,18 @@ declare interface ISbsTableTennisWebPartStrings {
   LoadingEloHistory: string;
   EloProgressThisMonth: string;
   EloRatingLegend: string;
+  EloProgress: string;
+  BasicStats: string;
+  AdditionalStats: string;
+  AllTimeStatsLabel: string;
+  CurrentStatsLabel: string;
+  AllTimeStatsTab: string;
+  CurrentStatsTab: string;
+  WinningStreak: string;
+  RecentWinRate: string;
+  AvgMargin: string;
+  CurrentWinningStreak: string;
+  CalculatingStats: string;
 }
 
 declare module 'SbsTableTennisWebPartStrings' {
