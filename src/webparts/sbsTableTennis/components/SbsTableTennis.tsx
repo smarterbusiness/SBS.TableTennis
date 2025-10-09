@@ -6,6 +6,7 @@ import {
   IColumn,
   DetailsListLayoutMode,
   SelectionMode,
+  IDetailsRowProps
 } from '@fluentui/react/lib/DetailsList';
 import { PrimaryButton } from '@fluentui/react/lib/Button';
 import { Link } from '@fluentui/react/lib/Link';
@@ -16,6 +17,7 @@ import { recalculateRankings } from '../../../core/state/matchSlice';
 import { IPlayer } from '../../../core/entities/Player';
 import PlayerStatsDialog from './costumComponents/PlayerStatsDialog';
 import AddMatchDialog from './AddMatchDialog';
+import * as strings from 'SbsTableTennisWebPartStrings';
 
 const SbsTableTennis = (props: ISbsTableTennisProps) => {
   const dispatch = useAppDispatch();
@@ -59,6 +61,22 @@ const SbsTableTennis = (props: ISbsTableTennisProps) => {
   };
 
   const columns: IColumn[] = [
+    {
+      key: 'rank',
+      name: '',
+      fieldName: 'rank',
+      minWidth: 30,
+      maxWidth: 30,
+      isResizable: false,
+      onRender: (_item: IPlayer, index?: number) => {
+        if (index === undefined || index > 2) return null;
+        const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉';
+        const label = index === 0 ? strings.MedalFirstPlaceAria : index === 1 ? strings.MedalSecondPlaceAria : strings.MedalThirdPlaceAria;
+        return (
+          <span role="img" aria-label={label} style={{ display: 'block', textAlign: 'center' }}>{medal}</span>
+        );
+      },
+    },
     {
       // Diese schmale Spalte zeigt den Positionsunterschied als farbigen Pfeil an
       key: 'columnMovement',
@@ -112,7 +130,7 @@ const SbsTableTennis = (props: ISbsTableTennisProps) => {
     },
     {
       key: 'columnName',
-      name: 'Name',
+      name: strings.ColumnName,
       fieldName: 'name',
       minWidth: 150,
       maxWidth: 200,
@@ -123,7 +141,7 @@ const SbsTableTennis = (props: ISbsTableTennisProps) => {
     },
     {
       key: 'columnRankingPoints',
-      name: 'Rangpunkte',
+      name: strings.ColumnRankingPoints,
       fieldName: 'rankingPoints',
       minWidth: 50,
       maxWidth: 100,
@@ -133,7 +151,7 @@ const SbsTableTennis = (props: ISbsTableTennisProps) => {
     },
     {
       key: 'columnGesamt',
-      name: 'Gesamt',
+      name: strings.ColumnTotal,
       fieldName: 'gesamt',
       minWidth: 50,
       maxWidth: 100,
@@ -142,7 +160,7 @@ const SbsTableTennis = (props: ISbsTableTennisProps) => {
     },
     {
       key: 'columnWins',
-      name: 'Siege',
+      name: strings.ColumnWins,
       fieldName: 'wins',
       minWidth: 50,
       maxWidth: 100,
@@ -151,7 +169,7 @@ const SbsTableTennis = (props: ISbsTableTennisProps) => {
     },
     {
       key: 'columnLosses',
-      name: 'Niederlagen',
+      name: strings.ColumnLosses,
       fieldName: 'losses',
       minWidth: 50,
       maxWidth: 100,
@@ -160,7 +178,7 @@ const SbsTableTennis = (props: ISbsTableTennisProps) => {
     },
     {
       key: 'columnSetDiff',
-      name: 'Satzdifferenz',
+      name: strings.ColumnSetDifference,
       fieldName: 'setDifference',
       minWidth: 50,
       maxWidth: 100,
@@ -173,28 +191,38 @@ const SbsTableTennis = (props: ISbsTableTennisProps) => {
     dispatch(recalculateRankings());
   };
 
+  const onRenderRow = (props?: IDetailsRowProps, defaultRender?: (props?: IDetailsRowProps) => JSX.Element | null) => {
+    if (!props || !defaultRender) return null;
+    let className = props.className || '';
+    if (props.itemIndex === 0) className = `${className} ${styles.goldRow}`.trim();
+    else if (props.itemIndex === 1) className = `${className} ${styles.silverRow}`.trim();
+    else if (props.itemIndex === 2) className = `${className} ${styles.bronzeRow}`.trim();
+    return defaultRender({ ...props, className });
+  };
+
   return (
     <div>
-      <h1>Leaderboard</h1>
+      <h1>{strings.LeaderboardTitle}</h1>
       <DetailsList
         items={sortedPlayers}
         columns={columns}
         setKey="set"
         layoutMode={DetailsListLayoutMode.fixedColumns}
+        onRenderRow={onRenderRow}
         selectionMode={SelectionMode.none}
         selectionPreservedOnEmptyClick={true}
-        ariaLabelForSelectionColumn="Toggle selection"
-        ariaLabelForSelectAllCheckbox="Toggle selection for all items"
+        ariaLabelForSelectionColumn={strings.AriaToggleSelection}
+        ariaLabelForSelectAllCheckbox={strings.AriaToggleSelectionAll}
         styles={{ root: { width: '100%' } }}
       />
       <PrimaryButton
         className={styles.button}
-        text="Add Match"
+        text={strings.AddMatchButton}
         onClick={() => setIsDialogOpen(true)}
       />
       <PrimaryButton
         className={styles.button}
-        text="Recalculate Rankings"
+        text={strings.RecalculateRankingsButton}
         onClick={handleRecalculate}
       />
       <AddMatchDialog
