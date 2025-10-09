@@ -123,16 +123,6 @@ export default class SPService implements ISPService {
                     WeightEloDifference: weights.WeightEloDifference,
                     WeightHeadToHead: weights.WeightHeadToHead,
                     WeightSetsDifference: weights.WeightSetsDifference,
-                    WeightPlayer1VsPlayer2: weights.WeightPlayer1VsPlayer2,
-                    WeightPlayer1VsPlayer3: weights.WeightPlayer1VsPlayer3,
-                    WeightPlayer1VsPlayer4: weights.WeightPlayer1VsPlayer4,
-                    WeightPlayer1VsPlayer5: weights.WeightPlayer1VsPlayer5,
-                    WeightPlayer2VsPlayer3: weights.WeightPlayer2VsPlayer3,
-                    WeightPlayer2VsPlayer4: weights.WeightPlayer2VsPlayer4,
-                    WeightPlayer2VsPlayer5: weights.WeightPlayer2VsPlayer5,
-                    WeightPlayer3VsPlayer4: weights.WeightPlayer3VsPlayer4,
-                    WeightPlayer3VsPlayer5: weights.WeightPlayer3VsPlayer5,
-                    WeightPlayer4VsPlayer5: weights.WeightPlayer4VsPlayer5,
                     LastUpdated: new Date().toISOString(),
                 });
             } else {
@@ -472,5 +462,236 @@ export default class SPService implements ISPService {
         }
     }
 
+    // In SPService.ts
+    public async getPlayersForMonth(year: number, month: number): Promise<IPlayer[]> {
+        // Alle Spieler laden
+        const players = await this.sp.web.lists.getByTitle("Players").items();
+        // Hole alle Matches für den angegebenen Monat
+        const startDate = new Date(Date.UTC(year, month, 1));
+        const endDate = new Date(Date.UTC(year, month + 1, 1));
+        const startDateString = startDate.toISOString().split('.')[0] + 'Z';
+        const endDateString = endDate.toISOString().split('.')[0] + 'Z';
 
+        const items = await this.sp.web.lists.getByTitle("Matches").items
+            .select("Id", "Player1Id", "Player2Id", "Score1", "Score2", "WinnerId", "Datum")
+            .filter(`Datum ge datetime'${startDateString}' and Datum lt datetime'${endDateString}'`)
+            .top(10000)();
+
+        const matches = items.map((item: any) => ({
+            id: item.Id,
+            player1Id: item.Player1Id,
+            player2Id: item.Player2Id,
+            score1: item.Score1,
+            score2: item.Score2,
+            winnerId: item.WinnerId,
+            date: new Date(item.Datum)
+        }));
+
+        // Sortiere die Matches chronologisch und berechne für jeden Spieler die Statistiken
+        matches.sort((a, b) => a.date.getTime() - b.date.getTime());
+        const playerMap = new Map<number, IPlayer>();
+        players.forEach((player: any) => {
+            playerMap.set(player.Id, {
+                id: player.Id,
+                name: player.Title,
+                rankingPoints: 1000, // Startwert
+                gesamt: 0,
+                wins: 0,
+                losses: 0,
+                setDifference: 0
+            });
+        });
+
+        matches.forEach(match => {
+            const player1 = playerMap.get(match.player1Id);
+            const player2 = playerMap.get(match.player2Id);
+            if (player1 && player2) {
+                const { newRating1, newRating2 } = this.calculateNewRatings(player1, player2, match.score1, match.score2);
+                player1.rankingPoints = newRating1;
+                player2.rankingPoints = newRating2;
+                if (match.score1 > match.score2) {
+                    player1.wins += 1;
+                    player2.losses += 1;
+                } else {
+                    player2.wins += 1;
+                    player1.losses += 1;
+                }
+                player1.setDifference += match.score1 - match.score2;
+                player2.setDifference += match.score2 - match.score1;
+            }
+        });
+
+        return Array.from(playerMap.values());
+    }
+
+
+    public async calculateRecentWinRate(playerId: number, n: number): Promise<number> {
+        try {
+            // Hole alle Matches (hier wird die Funktion getMatches() genutzt – diese liefert z.B. alle Einträge aus der Matches-Liste)
+            const matches = await this.getMatches();
+
+            // Filtere alle Matches, in denen der Spieler mitgespielt hat
+            const playerMatches = matches.filter(match =>
+                match.player1Id === playerId || match.player2Id === playerId
+            );
+
+            // Sortiere absteigend nach Datum (neueste zuerst)
+            playerMatches.sort((a, b) => b.date.getTime() - a.date.getTime());
+
+            // Nimm die letzten n Matches
+            const recentMatches = playerMatches.slice(0, n);
+
+            // Falls keine Matches vorhanden sind, default auf 50% (kann angepasst werden)
+            if (recentMatches.length === 0) return 0.5;
+
+            // Zähle, wie viele Matches der Spieler gewonnen hat
+            let wins = 0;
+            for (const match of recentMatches) {
+                if (match.winnerId === playerId) {
+                    wins++;
+                }
+            }
+            return wins / recentMatches.length;
+        } catch (error) {
+            console.error("Fehler bei calculateRecentWinRate:", error);
+            return 0.5; // Fallback-Wert
+        }
+    }
+
+    public async calculateWinningStreak(playerId: number): Promise<number> {
+        try {
+            const matches = await this.getMatches();
+
+            // Filtere alle Matches, in denen der Spieler mitgespielt hat
+            const playerMatches = matches.filter(match =>
+                match.player1Id === playerId || match.player2Id === playerId
+            );
+
+            // Sortiere absteigend nach Datum (neueste zuerst)
+            playerMatches.sort((a, b) => b.date.getTime() - a.date.getTime());
+
+            // Zähle die aufeinanderfolgenden Siege ab dem letzten Match
+            let streak = 0;
+            for (const match of playerMatches) {
+                if (match.winnerId === playerId) {
+                    streak++;
+                } else {
+                    // Sobald ein verlorenes Match gefunden wird, ist die Siegesserie beendet
+                    break;
+                }
+            }
+            return streak;
+        } catch (error) {
+            console.error("Fehler bei calculateWinningStreak:", error);
+            return 0;
+        }
+    }
+
+    public async calculateAvgMargin(playerId: number): Promise<number> {
+        try {
+            const matches = await this.getMatches();
+
+            // Filtere alle Matches, die der Spieler gewonnen hat
+            const wonMatches = matches.filter(match =>
+                match.winnerId === playerId && (match.player1Id === playerId || match.player2Id === playerId)
+            );
+
+            if (wonMatches.length === 0) return 0;
+
+            let totalMargin = 0;
+            for (const match of wonMatches) {
+                // Unterscheide, ob der Spieler als player1 oder player2 aufgetreten ist,
+                // damit der Satzunterschied korrekt berechnet wird.
+                if (match.player1Id === playerId) {
+                    totalMargin += (match.score1 - match.score2);
+                } else {
+                    totalMargin += (match.score2 - match.score1);
+                }
+            }
+
+            return totalMargin / wonMatches.length;
+        } catch (error) {
+            console.error("Fehler bei calculateAvgMargin:", error);
+            return 0;
+        }
+    }
+
+    //get alltime Matche for a player
+    public async getPlayerMatches(playerId: number): Promise<IMatch[]> {
+        try {
+            const items = await this.sp.web.lists.getByTitle("Matches").items
+                .select("Id", "Player1Id", "Player2Id", "Score1", "Score2", "WinnerId", "Datum")
+                .filter(`Player1Id eq ${playerId} or Player2Id eq ${playerId}`).top(10000)();
+
+            return items.map((item: any) => ({
+                id: item.Id,
+                player1Id: item.Player1Id,
+                player2Id: item.Player2Id,
+                score1: item.Score1,
+                score2: item.Score2,
+                winnerId: item.WinnerId,
+                date: new Date(item.Datum)
+            }));
+        } catch (error) {
+            console.error("Error fetching matches:", error);
+            return [];
+        }
+    }
+
+    //alltime elo history for player
+    public async getPlayerEloHistoryAllTime(playerId: number): Promise<{ matchNumber: number; elo: number }[]> {
+        const matches = await this.getPlayerMatches(playerId);
+
+        // Initialize ELO values for all players
+        const players = await this.getAllPlayers();
+        const playerEloMap = new Map<number, number>();
+        players.forEach(player => {
+            playerEloMap.set(player.id, this.startingRanking);
+        });
+
+        // Sort matches by date
+        matches.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+        let eloHistory: { matchNumber: number; elo: number }[] = [];
+        let matchCounter = 0;
+
+        const initialElo = this.startingRanking;
+        eloHistory.push({ matchNumber: 0, elo: initialElo });
+
+        for (let match of matches) {
+            const player1Id = match.player1Id;
+            const player2Id = match.player2Id;
+
+            const player1Elo = playerEloMap.get(player1Id) || this.startingRanking;
+            const player2Elo = playerEloMap.get(player2Id) || this.startingRanking;
+
+            const player1Score = match.score1;
+            const player2Score = match.score2;
+
+            // Create temporary player objects
+            const player1 = { id: player1Id, rankingPoints: player1Elo } as IPlayer;
+            const player2 = { id: player2Id, rankingPoints: player2Elo } as IPlayer;
+
+            // Calculate new ELO values
+            const { newRating1, newRating2 } = this.calculateNewRatings(
+                player1,
+                player2,
+                player1Score,
+                player2Score
+            );
+
+            // Update ELO values
+            playerEloMap.set(player1Id, newRating1);
+            playerEloMap.set(player2Id, newRating2);
+
+            // If the match concerns the player of interest, save ELO value
+            if (player1Id === playerId || player2Id === playerId) {
+                matchCounter++;
+                const currentElo = playerEloMap.get(playerId) || this.startingRanking;
+                eloHistory.push({ matchNumber: matchCounter, elo: currentElo });
+            }
+        }
+
+        return eloHistory;
+    }
 }

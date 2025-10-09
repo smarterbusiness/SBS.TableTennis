@@ -18,7 +18,7 @@ import styles from './SbsTableTennis.module.scss';
 export interface IAddMatchDialogProps {
     isOpen: boolean;
     onDismiss: () => void;
-    context: WebPartContext; // Stelle sicher, dass der WebPartContext übergeben wird
+    context: WebPartContext; // WebPartContext wird übergeben
 }
 
 const AddMatchDialog = (props: IAddMatchDialogProps) => {
@@ -29,8 +29,8 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
 
     const [player1Id, setPlayer1Id] = React.useState<number | undefined>();
     const [player2Id, setPlayer2Id] = React.useState<number | undefined>();
-    const [score1, setscore1] = React.useState<number>(0); // Anzahl der gewonnenen Sätze von Spieler 1
-    const [score2, setscore2] = React.useState<number>(0); // Anzahl der gewonnenen Sätze von Spieler 2
+    const [score1, setscore1] = React.useState<number>(0); // Gewonnene Sätze von Spieler 1
+    const [score2, setscore2] = React.useState<number>(0); // Gewonnene Sätze von Spieler 2
 
     const [winProbability1, setWinProbability1] = React.useState<number | null>(null);
     const [winProbability2, setWinProbability2] = React.useState<number | null>(null);
@@ -48,17 +48,65 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
         text: player.name,
     }));
 
-    // Verwende das Singleton, um SPService zu erhalten
+    // Hilfsfunktion, um NaN-Werte abzufangen
+    const safe = (value: number, fallback: number) => (isNaN(value) ? fallback : value);
+
+    // Erhalte SPService als Singleton
     const spService = useMemo(() => new SPService(context), [context]);
     const modelName = "MatchPredictionModel"; // Name des Modells in der SharePoint-Liste
 
     // Verwende useRef, um die SimpleMLModel-Instanz zu speichern
     const mlModelRef = useRef<SimpleMLModel | null>(null);
 
-    // Berechnung der Head-to-Head-Statistiken und Modelltraining beim Öffnen des Dialogs
+    // Funktion zur Berechnung der Gewinnwahrscheinlichkeiten (inkl. neuer Features)
+    const calculateWinProbabilities = async (player1Id: number, player2Id: number) => {
+        const player1 = players.find((p) => p.id === player1Id);
+        const player2 = players.find((p) => p.id === player2Id);
+
+        if (player1 && player2) {
+            const R_A = player1.rankingPoints;
+            const R_B = player2.rankingPoints;
+            const E_A = 1 / (1 + Math.pow(10, (R_B - R_A) / 400));
+            const E_B = 1 - E_A;
+            setWinProbability1(E_A);
+            setWinProbability2(E_B);
+
+            // Head-to-Head
+            const key = `${player1Id}-${player2Id}`;
+            const reverseKey = `${player2Id}-${player1Id}`;
+            const stats = headToHeadMap.get(key) || headToHeadMap.get(reverseKey);
+            const headToHeadWinRate1 = safe(stats && stats.total > 0 ? stats.wins1 / stats.total : 0.5, 0.5);
+
+            // Neue Features abfragen
+            const recentWinRate = safe(await spService.calculateRecentWinRate(player1Id, 5), 0.5);
+            const winningStreak = safe(await spService.calculateWinningStreak(player1Id), 0);
+            const avgMargin = safe(await spService.calculateAvgMargin(player1Id), 0);
+
+            // KI-basierte Prognose
+            if (mlModelRef.current) {
+                const matchData: MatchData = {
+                    player1Id,
+                    player2Id,
+                    winnerId: 0, // unbekannter Ausgang
+                    score1,
+                    score2,
+                    elo1: R_A,
+                    elo2: R_B,
+                    headToHeadWinRate1,
+                    recentWinRate,
+                    winningStreak,
+                    avgMargin,
+                };
+                const aiProbability = mlModelRef.current.predict(matchData);
+                setAiWinProbability1(safe(aiProbability, 0));
+                setAiWinProbability2(safe(1 - aiProbability, 0));
+            }
+        }
+    };
+
+    // Beim Öffnen des Dialogs: Zustände zurücksetzen, Head-to-Head berechnen und Modell trainieren
     useEffect(() => {
         if (isOpen) {
-            // Zustandsvariablen zurücksetzen
             setPlayer1Id(undefined);
             setPlayer2Id(undefined);
             setscore1(0);
@@ -69,11 +117,9 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
             setAiWinProbability2(null);
             setErrorMessage(null);
 
-            // Head-to-Head-Statistiken berechnen
             const statsMap = calculateHeadToHeadStats(allMatches);
             setHeadToHeadMap(statsMap);
 
-            // Historische Daten vorbereiten
             const prepareMatchData = async () => {
                 const matchesData: MatchData[] = [];
 
@@ -82,7 +128,10 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
                     const player2 = players.find((p) => p.id === match.player2Id);
 
                     if (player1 && player2) {
-                        const headToHeadWinRate1 = await spService.calculateHeadToHeadWinRate(match.player1Id, match.player2Id);
+                        const headToHeadWinRate1 = safe(await spService.calculateHeadToHeadWinRate(match.player1Id, match.player2Id), 0.5);
+                        const recentWinRate = safe(await spService.calculateRecentWinRate(match.player1Id, 5), 0.5);
+                        const winningStreak = safe(await spService.calculateWinningStreak(match.player1Id), 0);
+                        const avgMargin = safe(await spService.calculateAvgMargin(match.player1Id), 0);
 
                         matchesData.push({
                             player1Id: match.player1Id,
@@ -93,11 +142,13 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
                             elo1: player1.rankingPoints,
                             elo2: player2.rankingPoints,
                             headToHeadWinRate1,
+                            recentWinRate,
+                            winningStreak,
+                            avgMargin,
                         });
                     }
                 }
 
-                // Modell initialisieren, Gewichte laden und trainieren
                 try {
                     const model = new SimpleMLModel(modelName, spService);
                     await model.loadWeights();
@@ -112,47 +163,6 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
             prepareMatchData();
         }
     }, [isOpen, allMatches, players, spService, modelName]);
-
-    // Funktion zur Berechnung der Gewinnwahrscheinlichkeiten
-    const calculateWinProbabilities = (player1Id: number, player2Id: number) => {
-        const player1 = players.find((p) => p.id === player1Id);
-        const player2 = players.find((p) => p.id === player2Id);
-
-        if (player1 && player2) {
-            // ELO-basierte Gewinnwahrscheinlichkeit
-            const R_A = player1.rankingPoints;
-            const R_B = player2.rankingPoints;
-
-            const E_A = 1 / (1 + Math.pow(10, (R_B - R_A) / 400));
-            const E_B = 1 - E_A;
-
-            setWinProbability1(E_A);
-            setWinProbability2(E_B);
-
-            // Head-to-Head-Winrate berechnen
-            const key = `${player1Id}-${player2Id}`;
-            const reverseKey = `${player2Id}-${player1Id}`;
-            const stats = headToHeadMap.get(key) || headToHeadMap.get(reverseKey);
-            const headToHeadWinRate1 = stats && stats.total > 0 ? stats.wins1 / stats.total : 0.5;
-
-            // KI-basierte Gewinnwahrscheinlichkeit berechnen
-            if (mlModelRef.current) {
-                const matchData: MatchData = {
-                    player1Id,
-                    player2Id,
-                    winnerId: 0, // Unbekannt beim Vorhersagen
-                    score1,
-                    score2,
-                    elo1: R_A,
-                    elo2: R_B,
-                    headToHeadWinRate1,
-                };
-                const aiProbability = mlModelRef.current.predict(matchData);
-                setAiWinProbability1(aiProbability);
-                setAiWinProbability2(1 - aiProbability);
-            }
-        }
-    };
 
     // Handler für Spieler 1 Auswahl
     const handlePlayer1Change = (e: React.FormEvent<HTMLDivElement>, option?: IDropdownOption) => {
@@ -215,14 +225,15 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
             };
 
             try {
-                // Speichere das Match über den Redux-Dispatcher
                 await dispatch(addMatch(match)).unwrap();
 
-                // Modell aktualisieren
                 if (mlModelRef.current) {
                     const player1 = players.find((p) => p.id === player1Id);
                     const player2 = players.find((p) => p.id === player2Id);
-                    const headToHeadWinRate1 = await spService.calculateHeadToHeadWinRate(player1Id, player2Id);
+                    const headToHeadWinRate1 = safe(await spService.calculateHeadToHeadWinRate(player1Id, player2Id), 0.5);
+                    const recentWinRate = safe(await spService.calculateRecentWinRate(player1Id, 5), 0.5);
+                    const winningStreak = safe(await spService.calculateWinningStreak(player1Id), 0);
+                    const avgMargin = safe(await spService.calculateAvgMargin(player1Id), 0);
 
                     const matchData: MatchData = {
                         player1Id,
@@ -233,10 +244,13 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
                         elo1: player1 ? player1.rankingPoints : 1000,
                         elo2: player2 ? player2.rankingPoints : 1000,
                         headToHeadWinRate1,
+                        recentWinRate,
+                        winningStreak,
+                        avgMargin,
                     };
 
                     mlModelRef.current.updateModel(matchData);
-                    await mlModelRef.current.saveWeights(); // Speichern der aktualisierten Gewichte
+                    await mlModelRef.current.saveWeights();
                 }
 
                 onDismiss();
@@ -314,7 +328,6 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
                     />
                 </div>
 
-                {/* ELO-basierte Gewinnwahrscheinlichkeit */}
                 {winProbability1 !== null && winProbability2 !== null && (
                     <div className={styles.winProbabilities}>
                         <MessageBar messageBarType={MessageBarType.info}>
@@ -328,7 +341,6 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
                     </div>
                 )}
 
-                {/* KI-basierte Gewinnwahrscheinlichkeit */}
                 {aiWinProbability1 !== null && aiWinProbability2 !== null && (
                     <div className={styles.winProbabilities}>
                         <MessageBar messageBarType={MessageBarType.success}>
@@ -352,7 +364,6 @@ const AddMatchDialog = (props: IAddMatchDialogProps) => {
             </DialogFooter>
         </Dialog>
     );
-
 };
 
 export default AddMatchDialog;
